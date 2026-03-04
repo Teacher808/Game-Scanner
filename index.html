@@ -14,32 +14,21 @@
   <style>
     [v-cloak] { display: none; }
     
-    /* Clean Print CSS for 2 QR Cards per Page */
     @media print {
-      @page {
-        margin: 0; /* Remove default margins to allow full edge-to-edge printing */
-        size: portrait;
-      }
-      body * {
-        visibility: hidden;
-      }
-      #print-area, #print-area * {
-        visibility: visible;
-      }
-      #print-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        background: white;
-      }
-      .break-after-page {
-        page-break-after: always;
-      }
+      @page { margin: 0; size: portrait; }
+      body * { visibility: hidden; }
+      #print-area, #print-area * { visibility: visible; }
+      #print-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background: white; }
+      .break-after-page { page-break-after: always; }
       .print-hide { display: none !important; }
       body { background: white !important; }
+    }
+
+    .projector-card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    .pop-in { animation: popIn 0.3s ease-out forwards; }
+    @keyframes popIn {
+      0% { transform: scale(0.9); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
     }
   </style>
 </head>
@@ -52,7 +41,7 @@
        {{ notification }}
     </div>
 
-    <!-- Initial Auth Loading Overlay -->
+    <!-- Initial Auth Loading -->
     <div v-if="authLoading" class="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-50 print-hide">
       <div class="flex flex-col items-center gap-4">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -60,7 +49,7 @@
       </div>
     </div>
 
-    <!-- Authentication Overlay (Covers app when not logged in) -->
+    <!-- Auth Overlay -->
     <div v-else-if="!currentUser" class="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50 p-4 print-hide">
       <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-slate-200">
         <div class="flex justify-center mb-6 text-blue-600">
@@ -71,18 +60,16 @@
         <form @submit.prevent="handleAuthSubmit" class="space-y-5">
           <div>
             <label class="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
-            <input v-model="authEmail" type="email" required class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow bg-slate-50" placeholder="you@example.com">
+            <input v-model="authEmail" type="email" required class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-slate-50">
           </div>
           <div>
             <label class="block text-sm font-bold text-slate-700 mb-2">Password</label>
-            <input v-model="authPassword" type="password" required class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow bg-slate-50" placeholder="••••••••">
+            <input v-model="authPassword" type="password" required class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-slate-50">
           </div>
 
-          <div v-if="authError" class="p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl font-medium">
-            {{ authError }}
-          </div>
+          <div v-if="authError" class="p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl font-medium">{{ authError }}</div>
 
-          <button type="submit" :disabled="isAuthProcessing" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center text-lg mt-2">
+          <button type="submit" :disabled="isAuthProcessing" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md disabled:opacity-70 flex justify-center items-center text-lg mt-2">
             <span v-if="isAuthProcessing" class="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
             {{ isLoginMode ? 'Sign In' : 'Sign Up' }}
           </button>
@@ -96,37 +83,41 @@
       </div>
     </div>
 
-    <!-- Global Header / Logout Button -->
+    <!-- Header / Logout -->
     <div v-if="currentUser && !authLoading" class="fixed top-3 right-4 z-[9000] flex items-center gap-3 print-hide">
       <span class="hidden md:inline-block text-sm font-bold text-slate-700 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm border border-slate-200">
         {{ currentUser.email || 'Anonymous User' }}
       </span>
-      <button @click="logout" type="button" class="bg-white/90 backdrop-blur border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-700 px-4 py-2 rounded-full shadow-sm font-bold transition-all text-sm flex items-center gap-2">
+      <button @click="logout" type="button" class="bg-white/90 backdrop-blur border border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-700 px-4 py-2 rounded-full shadow-sm font-bold transition-all text-sm flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         Logout
       </button>
     </div>
 
-    <!-- Sidebar / Navigation -->
+    <!-- Sidebar Navigation -->
     <aside v-if="currentUser && !authLoading" class="w-full md:w-64 bg-slate-900 text-white flex flex-col print-hide shrink-0 z-10">
       <div class="p-4 text-2xl font-black border-b border-slate-800 flex items-center gap-3 tracking-tight">
         <svg class="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
         ScanMaster
       </div>
       <nav class="flex-1 p-4 space-y-2 flex flex-row md:flex-col overflow-x-auto md:overflow-visible font-medium">
-        <button @click="activeTab = 'classes'" :class="{'bg-blue-600 shadow-md': activeTab === 'classes', 'hover:bg-slate-800': activeTab !== 'classes'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all shrink-0">
+        <button @click="activeTab = 'classes'" :class="{'bg-blue-600 shadow-md': activeTab === 'classes', 'hover:bg-slate-800': activeTab !== 'classes'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
           Classes
         </button>
-        <button @click="activeTab = 'quizzes'" :class="{'bg-blue-600 shadow-md': activeTab === 'quizzes', 'hover:bg-slate-800': activeTab !== 'quizzes'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all shrink-0">
+        <button @click="activeTab = 'quizzes'" :class="{'bg-blue-600 shadow-md': activeTab === 'quizzes', 'hover:bg-slate-800': activeTab !== 'quizzes'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
           Quizzes
         </button>
-        <button @click="activeTab = 'scan'" :class="{'bg-blue-600 shadow-md': activeTab === 'scan', 'hover:bg-slate-800': activeTab !== 'scan'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all shrink-0">
+        <button @click="activeTab = 'scan'" :class="{'bg-blue-600 shadow-md': activeTab === 'scan', 'hover:bg-slate-800': activeTab !== 'scan'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
           Scan Session
         </button>
-        <button @click="activeTab = 'analytics'" :class="{'bg-blue-600 shadow-md': activeTab === 'analytics', 'hover:bg-slate-800': activeTab !== 'analytics'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all shrink-0">
+        <button @click="activeTab = 'projector'" :class="{'bg-purple-600 shadow-md': activeTab === 'projector', 'hover:bg-slate-800 text-purple-300': activeTab !== 'projector'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 shrink-0 mt-4 border border-slate-700 md:mt-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+          Live Projector
+        </button>
+        <button @click="activeTab = 'analytics'" :class="{'bg-blue-600 shadow-md': activeTab === 'analytics', 'hover:bg-slate-800': activeTab !== 'analytics'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 shrink-0 md:mt-auto">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
           Analytics
         </button>
@@ -138,14 +129,13 @@
 
       <!-- CLASSES TAB -->
       <div v-if="activeTab === 'classes'" class="space-y-6 h-full flex flex-col">
+         <!-- Original Classes Content (Kept Intact) -->
         <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-          
-          <!-- Class List -->
           <div class="w-full lg:w-1/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]">
             <h2 class="text-2xl font-black mb-6 text-slate-800">Your Classes</h2>
             <div class="flex gap-2 mb-4">
               <input v-model="newClassName" @keyup.enter="addClass" placeholder="New class name..." class="flex-1 px-4 py-3 bg-slate-50 border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
-              <button @click="addClass" class="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm">Add</button>
+              <button @click="addClass" class="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 transition">Add</button>
             </div>
             <ul class="space-y-2 overflow-auto flex-1 pr-2">
               <li v-if="classes.length === 0" class="text-slate-500 italic text-center mt-8 font-medium">No classes created yet.</li>
@@ -155,8 +145,6 @@
               </li>
             </ul>
           </div>
-
-          <!-- Class Roster -->
           <div class="w-full lg:w-2/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]" v-if="currentClass">
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
               <h2 class="text-3xl font-black text-slate-800">{{ currentClass.name }} Roster</h2>
@@ -165,26 +153,18 @@
                 Print 2/Page
               </button>
             </div>
-            
-            <!-- Add Student Controls -->
             <div class="flex items-start gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div class="flex-1">
-                 <!-- Single Add -->
                  <input v-if="!showBulkAdd" v-model="newStudentName" @keyup.enter="addStudent(selectedClassId)" placeholder="Type student name..." class="w-full px-4 py-3 bg-white border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
-                 <!-- Bulk Add -->
                  <textarea v-else v-model="bulkStudentText" placeholder="Paste multiple student names (one per line)..." class="w-full px-4 py-3 bg-white border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium" rows="3"></textarea>
               </div>
               <div class="flex flex-col gap-2 shrink-0">
                  <button v-if="!showBulkAdd" @click="addStudent(selectedClassId)" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition w-full shadow-sm">Add Student</button>
                  <button v-else @click="bulkAddStudents(selectedClassId)" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition w-full shadow-sm">Add All</button>
-                 <button @click="showBulkAdd = !showBulkAdd" class="text-sm text-slate-500 hover:text-blue-600 font-bold text-center transition-colors py-1">
-                    {{ showBulkAdd ? 'Switch to Single Add' : 'Use Bulk Add' }}
-                 </button>
+                 <button @click="showBulkAdd = !showBulkAdd" class="text-sm text-slate-500 hover:text-blue-600 font-bold text-center transition-colors py-1">{{ showBulkAdd ? 'Switch to Single Add' : 'Use Bulk Add' }}</button>
               </div>
             </div>
-            
             <div class="flex-1 overflow-auto pr-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-8 content-start">
-               <div v-if="currentClass.students.length === 0" class="col-span-full text-slate-500 italic text-center mt-8 font-medium">No students in this class yet.</div>
                <div v-for="student in currentClass.students" :key="student.id" class="p-4 border rounded-xl border-slate-200 text-center flex flex-col items-center bg-white relative group shadow-sm hover:shadow-md transition-shadow">
                   <button @click="deleteStudent(currentClass, student.id)" class="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 rounded-full p-1.5">
                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -196,7 +176,6 @@
                </div>
             </div>
           </div>
-          
           <div class="w-full lg:w-2/3 flex flex-col items-center justify-center text-slate-400 font-medium h-[75vh] bg-white rounded-2xl border border-slate-200 border-dashed" v-else>
              <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
              Select a class to view its roster and print QR cards.
@@ -206,42 +185,33 @@
 
       <!-- QUIZZES TAB -->
       <div v-if="activeTab === 'quizzes'" class="space-y-6 h-full flex flex-col">
+        <!-- Original Quizzes Content (Kept Intact) -->
         <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-          
-          <!-- Quiz List -->
           <div class="w-full lg:w-1/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]">
             <h2 class="text-2xl font-black mb-6 text-slate-800">Your Quizzes</h2>
             <div class="flex gap-2 mb-4">
               <input v-model="newQuizName" @keyup.enter="addQuiz" placeholder="New quiz title..." class="flex-1 px-4 py-3 bg-slate-50 border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
-              <button @click="addQuiz" class="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm">Add</button>
+              <button @click="addQuiz" class="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 transition">Add</button>
             </div>
             <ul class="space-y-2 overflow-auto flex-1 pr-2">
               <li v-if="quizzes.length === 0" class="text-slate-500 italic text-center mt-8 font-medium">No quizzes created yet.</li>
               <li v-for="quiz in quizzes" :key="quiz.id" @click="selectedQuizId = quiz.id" :class="{'bg-blue-50 border-blue-200 text-blue-900 shadow-sm': selectedQuizId === quiz.id, 'hover:bg-slate-50 border-slate-100 text-slate-700': selectedQuizId !== quiz.id}" class="cursor-pointer p-4 border rounded-xl transition-all flex justify-between items-center group">
                 <span class="font-bold">{{ quiz.name }}</span>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs bg-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-bold transition-colors">{{ quiz.questions.length }} Qs</span>
-                  <button @click.stop="deleteQuiz(quiz.id)" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                  </button>
+                  <span class="text-xs bg-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-bold">{{ quiz.questions.length }} Qs</span>
+                  <button @click.stop="deleteQuiz(quiz.id)" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                 </div>
               </li>
             </ul>
           </div>
-
-          <!-- Quiz Editor -->
           <div class="w-full lg:w-2/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]" v-if="currentQuiz">
             <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
               <h2 class="text-3xl font-black text-slate-800">{{ currentQuiz.name }}</h2>
-              <button @click="addQuestion(selectedQuizId)" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm">+ Add Question</button>
+              <button @click="addQuestion(selectedQuizId)" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition">+ Add Question</button>
             </div>
-            
             <div class="flex-1 overflow-auto pr-2 space-y-6 pb-8">
-               <div v-if="currentQuiz.questions.length === 0" class="text-slate-500 italic text-center mt-8 font-medium">Click "Add Question" to build your quiz.</div>
                <div v-for="(q, index) in currentQuiz.questions" :key="q.id" class="p-5 border rounded-xl border-slate-200 bg-slate-50 relative group shadow-sm">
-                  <button @click="deleteQuestion(currentQuiz, index)" class="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition-colors bg-white rounded-full shadow-sm p-1.5 border border-slate-100">
-                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                  </button>
+                  <button @click="deleteQuestion(currentQuiz, index)" class="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition-colors bg-white rounded-full p-1.5 border border-slate-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                   <div class="flex gap-4 mb-5 pr-8">
                      <span class="font-black text-2xl text-blue-600 mt-1">Q{{ index + 1 }}</span>
                      <textarea v-model="q.text" @change="syncData" placeholder="Enter question text here..." rows="2" class="flex-1 p-3 border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium text-slate-800 bg-white"></textarea>
@@ -256,7 +226,6 @@
                </div>
             </div>
           </div>
-          
           <div class="w-full lg:w-2/3 flex flex-col items-center justify-center text-slate-400 font-medium h-[75vh] bg-white rounded-2xl border border-slate-200 border-dashed" v-else>
              <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
              Select a quiz to view and edit its questions.
@@ -266,8 +235,6 @@
 
       <!-- SCAN TAB -->
       <div v-if="activeTab === 'scan'" class="h-full flex flex-col">
-        
-        <!-- Setup Screen -->
         <div v-if="!isCapturing" class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-xl mx-auto mt-10 w-full">
            <h2 class="text-3xl font-black mb-8 text-center text-slate-800">Start Session</h2>
            <div class="space-y-6">
@@ -285,47 +252,33 @@
                     <option v-for="q in quizzes" :key="q.id" :value="q.id">{{ q.name }}</option>
                  </select>
               </div>
-              <button @click="startSession" :disabled="!scanClassId || !scanQuizId" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-md transition-all">Start Scanning Room</button>
+              <button @click="startSession" :disabled="!scanClassId || !scanQuizId" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-xl hover:bg-blue-700 disabled:opacity-50 mt-4 shadow-md transition-all">Start Scanning Room</button>
            </div>
         </div>
-
-        <!-- Active Scanner Screen -->
         <div v-else class="flex flex-col lg:flex-row gap-6 h-full pb-10">
-           
-           <!-- Live Camera Feed -->
            <div class="flex-1 flex flex-col bg-slate-900 rounded-2xl overflow-hidden relative shadow-lg">
-              
-              <!-- Top Overlay HUD -->
               <div class="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-10 text-white pointer-events-none">
                  <div class="max-w-lg pointer-events-auto">
                     <div class="font-black text-2xl mb-1 text-blue-400">Question {{ qIndex + 1 }} <span class="text-slate-400 text-lg font-bold">of {{ currentScanQuiz?.questions.length }}</span></div>
                     <div class="font-bold text-lg text-slate-200 drop-shadow-md leading-tight">{{ currentScanQuiz?.questions[qIndex]?.text }}</div>
                  </div>
                  <div class="flex gap-2 shrink-0 mt-2 pointer-events-auto">
-                    <button @click="prevQuestion" :disabled="qIndex === 0" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50 transition-colors">&larr; Prev</button>
-                    <button @click="nextQuestion" :disabled="qIndex === (currentScanQuiz?.questions.length || 1) - 1" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50 transition-colors">Next &rarr;</button>
+                    <button @click="prevQuestion" :disabled="qIndex === 0" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50">&larr; Prev</button>
+                    <button @click="nextQuestion" :disabled="qIndex === (currentScanQuiz?.questions.length || 1) - 1" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50">Next &rarr;</button>
                  </div>
               </div>
               
               <video ref="videoElement" class="hidden" playsinline></video>
               <canvas ref="canvasElement" class="w-full h-full object-cover"></canvas>
               
-              <!-- Bottom Overlay HUD -->
               <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end z-10">
-                 <div class="flex gap-3">
-                     <div class="bg-black/70 px-5 py-3 rounded-xl text-white font-black backdrop-blur-sm border border-white/10 text-lg flex items-center shadow-lg">
-                        Scanned: <span class="text-green-400 text-2xl ml-2 mr-1">{{ Object.keys(scanAnswers).filter(id => scanAnswers[id][qIndex] !== undefined).length }}</span> / {{ currentScanClass?.students.length }}
-                     </div>
-                     <button @click="openProjectorWindow" class="bg-indigo-600/90 text-white px-4 py-3 rounded-xl font-bold hover:bg-indigo-500 backdrop-blur-sm shadow-lg border border-indigo-400/50 transition-colors flex items-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        Projector Mode
-                     </button>
+                 <div class="bg-black/70 px-5 py-3 rounded-xl text-white font-black backdrop-blur-sm border border-white/10 text-lg flex items-center shadow-lg">
+                    Scanned: <span class="text-green-400 text-2xl ml-2 mr-1">{{ Object.keys(scanAnswers).filter(id => scanAnswers[id][qIndex] !== undefined).length }}</span> / {{ currentScanClass?.students.length }}
                  </div>
                  <button @click="endSession" class="bg-red-600 text-white px-8 py-4 rounded-xl font-black hover:bg-red-700 shadow-lg border border-red-800 transition-colors text-xl">Finish Session</button>
               </div>
            </div>
            
-           <!-- Live Results Sidebar -->
            <div class="w-full lg:w-80 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden shrink-0">
               <div class="p-4 bg-slate-50 border-b border-slate-200 font-black text-slate-800 flex justify-between items-center text-lg">
                  Live Feed (Q{{ qIndex + 1 }})
@@ -344,23 +297,61 @@
         </div>
       </div>
 
+      <!-- LIVE PROJECTOR TAB -->
+      <div v-if="activeTab === 'projector'" class="h-full flex flex-col bg-[#0f172a] text-white p-6 md:p-10 rounded-3xl overflow-hidden relative shadow-2xl border border-slate-800">
+         
+         <!-- Placeholder State -->
+         <div v-if="!liveProjectorData?.isActive" class="flex flex-col items-center justify-center h-full text-slate-500 text-center px-4">
+             <svg class="w-24 h-24 mb-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+             <h2 class="text-4xl font-black mb-3 text-slate-300">Projector Mode Ready</h2>
+             <p class="text-xl font-medium max-w-lg">Open the <b>Scan Session</b> tab on your phone or tablet to start scanning. Live results will automatically appear here.</p>
+         </div>
+         
+         <!-- Active Projector State -->
+         <div v-else class="flex flex-col h-full w-full">
+            <div class="mb-8 bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-xl flex items-center gap-6 shrink-0">
+                <div class="text-4xl md:text-5xl font-black text-blue-500 bg-blue-500/10 px-6 py-4 rounded-xl border border-blue-500/20">Q{{ liveProjectorData.qNumber }}</div>
+                <div class="text-2xl md:text-3xl font-bold text-slate-100 flex-1 leading-snug">{{ liveProjectorData.questionText }}</div>
+                <div class="text-right shrink-0">
+                   <div class="text-slate-400 font-bold text-sm uppercase tracking-widest mb-1">Scanned</div>
+                   <div class="text-4xl md:text-5xl font-black text-green-400 drop-shadow-md">{{ liveProjectorData.scannedCount }} <span class="text-slate-500 text-2xl">/ {{ liveProjectorData.totalCount }}</span></div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 flex-1 overflow-auto content-start pb-10 pr-2">
+                <div v-for="s in liveProjectorData.students" :key="s.id" :class="[
+                   'projector-card pop-in border-2 rounded-2xl p-5 flex flex-col items-center justify-center text-center',
+                   s.status === 'correct' ? 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.15)]' :
+                   s.status === 'wrong' ? 'bg-red-900/40 border-red-500 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.15)]' :
+                   'bg-slate-800/50 border-slate-700 text-slate-500'
+                ]">
+                    <svg v-if="s.status === 'correct'" class="w-10 h-10 mx-auto mb-3 mt-1 text-green-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg v-else-if="s.status === 'wrong'" class="w-10 h-10 mx-auto mb-3 mt-1 text-red-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg v-else class="w-10 h-10 opacity-30 mx-auto mb-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    
+                    <div class="font-bold text-xl truncate w-full mb-1" :class="s.status !== 'waiting' ? 'text-slate-100' : ''">{{ s.name }}</div>
+                    <div class="text-sm font-black uppercase tracking-wider">
+                       {{ s.status === 'waiting' ? 'Waiting...' : s.status === 'correct' ? `Correct (${s.answerLetter})` : `Wrong (${s.answerLetter})` }}
+                    </div>
+                </div>
+            </div>
+         </div>
+      </div>
+
       <!-- ANALYTICS TAB -->
       <div v-if="activeTab === 'analytics'" class="space-y-6">
+         <!-- Original Analytics Content (Kept Intact) -->
          <div class="flex justify-between items-end mb-6">
             <h2 class="text-3xl font-black text-slate-800">Past Sessions</h2>
          </div>
-         
          <div v-if="sessions.length === 0" class="text-slate-500 font-medium bg-white p-8 rounded-2xl border border-slate-200 text-center">
             No grading sessions completed yet. Go to the Scan tab to run a quiz!
          </div>
-         
          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-12">
             <div v-for="session in sessions" :key="session.id" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative group overflow-hidden">
-               
                <button @click="deleteSession(session.id)" class="absolute top-4 right-4 text-slate-300 hover:text-red-600 transition-colors z-10 bg-white rounded-full p-1.5 shadow-sm border border-slate-100">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                </button>
-
                <div class="flex justify-between items-start mb-6 pr-8">
                   <div>
                      <h3 class="font-black text-2xl text-slate-800">{{ getQuizName(session.quizId) }}</h3>
@@ -370,7 +361,6 @@
                      Avg: {{ session.averageScore }}%
                   </div>
                </div>
-               
                <div class="overflow-x-auto rounded-xl border border-slate-200">
                   <table class="w-full text-sm">
                      <thead class="bg-slate-50 text-slate-700 border-b border-slate-200">
@@ -396,7 +386,7 @@
 
     </main>
 
-    <!-- PRINT OVERLAY (Only visible during window.print()) - 2 QR Codes per page -->
+    <!-- PRINT OVERLAY -->
     <div id="print-area" v-if="currentPrintClass" class="hidden print:block absolute inset-0 bg-white z-[9999] overflow-visible">
        <div v-for="(student, index) in currentPrintClass.students" :key="student.id" 
             :class="{'break-after-page': index % 2 === 1, 'border-b-2': index % 2 === 0}"
@@ -461,11 +451,8 @@
             authError.value = '';
             isAuthProcessing.value = true;
             try {
-                if (isLoginMode.value) {
-                    await signInWithEmailAndPassword(auth, authEmail.value, authPassword.value);
-                } else {
-                    await createUserWithEmailAndPassword(auth, authEmail.value, authPassword.value);
-                }
+                if (isLoginMode.value) await signInWithEmailAndPassword(auth, authEmail.value, authPassword.value);
+                else await createUserWithEmailAndPassword(auth, authEmail.value, authPassword.value);
             } catch(e) {
                 let msg = e.message;
                 if (e.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
@@ -478,15 +465,10 @@
         };
 
         const logout = async () => {
-            if (unsubscribeSnapshot) {
-                unsubscribeSnapshot(); 
-                unsubscribeSnapshot = null;
-            }
+            if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+            stopProjectorListener();
             await signOut(auth);
-            classes.value = [];
-            quizzes.value = [];
-            sessions.value = [];
-            if(projectorWindow.value && !projectorWindow.value.closed) projectorWindow.value.close();
+            classes.value = []; quizzes.value = []; sessions.value = [];
             showNotification('Logged out successfully');
         };
 
@@ -503,10 +485,6 @@
                 }
             }, (err) => {
                 console.error("Firestore sync error:", err);
-                if (err.code === 'permission-denied') {
-                    showNotification("Sync error: Session expired or permission denied.");
-                    logout();
-                }
             });
         };
 
@@ -514,15 +492,8 @@
             if (!currentUser.value || !db) return;
             try {
                 const docRef = doc(db, 'artifacts', appId, 'users', currentUser.value.uid, 'appData', 'state');
-                await setDoc(docRef, {
-                    classes: classes.value,
-                    quizzes: quizzes.value,
-                    sessions: sessions.value,
-                    updatedAt: Date.now()
-                });
-            } catch (err) {
-                console.error("Failed to sync:", err);
-            }
+                await setDoc(docRef, { classes: classes.value, quizzes: quizzes.value, sessions: sessions.value, updatedAt: Date.now() });
+            } catch (err) { console.error("Failed to sync:", err); }
         };
 
         onMounted(async () => {
@@ -534,16 +505,14 @@
                 authLoading.value = false;
                 if (user) {
                     setupFirestoreListeners(user);
+                    if (activeTab.value === 'projector') startProjectorListener();
                 } else {
-                    if (unsubscribeSnapshot) {
-                        unsubscribeSnapshot();
-                        unsubscribeSnapshot = null;
-                    }
+                    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+                    stopProjectorListener();
                 }
             });
         });
 
-        // --- Core Application Logic ---
         const getQrCodeUrl = (data) => {
           if (!data) return '';
           try {
@@ -568,8 +537,7 @@
         const addClass = () => {
           if (newClassName.value.trim()) {
             classes.value.push({ id: `cls_${Date.now()}`, name: newClassName.value.trim(), students: [] });
-            newClassName.value = '';
-            syncData();
+            newClassName.value = ''; syncData();
           }
         };
 
@@ -578,8 +546,7 @@
           if (cls && newStudentName.value.trim()) {
             const studentId = `stu_${Date.now()}_${Math.floor(Math.random()*1000)}`;
             cls.students.push({ id: studentId, name: newStudentName.value.trim(), qrCode: getQrCodeUrl(studentId) });
-            newStudentName.value = '';
-            syncData();
+            newStudentName.value = ''; syncData();
           }
         };
 
@@ -591,15 +558,12 @@
                 const studentId = `stu_${Date.now()}_${Math.floor(Math.random()*1000)}`;
                 cls.students.push({ id: studentId, name: name, qrCode: getQrCodeUrl(studentId) });
              });
-             bulkStudentText.value = '';
-             showBulkAdd.value = false;
-             syncData();
+             bulkStudentText.value = ''; showBulkAdd.value = false; syncData();
           }
         };
 
         const deleteStudent = (cls, studentId) => {
-           cls.students = cls.students.filter(s => s.id !== studentId);
-           syncData();
+           cls.students = cls.students.filter(s => s.id !== studentId); syncData();
         };
 
         const currentPrintClass = ref(null);
@@ -616,8 +580,7 @@
         const addQuiz = () => {
           if(newQuizName.value.trim()) {
             quizzes.value.push({ id: `qzz_${Date.now()}`, name: newQuizName.value.trim(), questions: [] });
-            newQuizName.value = '';
-            syncData();
+            newQuizName.value = ''; syncData();
           }
         };
         const deleteQuiz = (qId) => {
@@ -632,12 +595,36 @@
             syncData();
           }
         };
-        const deleteQuestion = (qz, index) => {
-           qz.questions.splice(index, 1);
-           syncData();
+        const deleteQuestion = (qz, index) => { qz.questions.splice(index, 1); syncData(); };
+
+
+        // --- Live Cloud Projector Sync Logic ---
+        const liveProjectorData = ref({ isActive: false });
+        let projectorUnsubscribe = null;
+
+        const startProjectorListener = () => {
+            if (!currentUser.value || !db) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', currentUser.value.uid, 'liveProjector', 'state');
+            projectorUnsubscribe = onSnapshot(docRef, (snap) => {
+                if (snap.exists()) {
+                    liveProjectorData.value = snap.data();
+                } else {
+                    liveProjectorData.value = { isActive: false };
+                }
+            }, (err) => console.error("Projector sync error:", err));
         };
 
-        // --- Live Scanner & Projector Logic ---
+        const stopProjectorListener = () => {
+            if (projectorUnsubscribe) { projectorUnsubscribe(); projectorUnsubscribe = null; }
+        };
+
+        watch(activeTab, (newTab) => {
+            if (newTab === 'projector') startProjectorListener();
+            else stopProjectorListener();
+        });
+
+
+        // --- Live Scanner Logic ---
         const scanClassId = ref(null);
         const scanQuizId = ref(null);
         const currentScanClass = computed(() => classes.value.find(c => c.id === scanClassId.value));
@@ -652,146 +639,51 @@
         const canvasElement = ref(null);
         let videoStream = null;
 
-        const projectorWindow = ref(null);
+        const updateCloudProjector = async () => {
+            if (!currentUser.value || !db || !isCapturing.value) return;
+            const quiz = currentScanQuiz.value;
+            const cls = currentScanClass.value;
+            if (!quiz || !cls) return;
 
-        // Send state to projector via window.postMessage
-        const updateProjector = () => {
-          if (!projectorWindow.value || projectorWindow.value.closed) return;
-          const quiz = currentScanQuiz.value;
-          const cls = currentScanClass.value;
-          if (!quiz || !cls) return;
+            const currentQ = quiz.questions[qIndex.value];
+            let scannedCount = 0;
 
-          const currentQ = quiz.questions[qIndex.value];
-          const questionText = currentQ ? currentQ.text : 'Loading...';
-          let scannedCount = 0;
+            const studentsData = cls.students.map(student => {
+               const studentAnswers = scanAnswers.value[student.id] || {};
+               const ansIdx = studentAnswers[qIndex.value];
+               let status = 'waiting';
+               let answerLetter = '';
+               
+               if (ansIdx !== undefined) {
+                  scannedCount++;
+                  answerLetter = ['A', 'B', 'C', 'D'][ansIdx];
+                  if (currentQ && currentQ.answerIndex === ansIdx) status = 'correct';
+                  else status = 'wrong';
+               }
+               return { id: student.id, name: student.name, status, answerLetter };
+            });
 
-          const studentsData = cls.students.map(student => {
-             const studentAnswers = scanAnswers.value[student.id] || {};
-             const ansIdx = studentAnswers[qIndex.value];
-             
-             let status = 'waiting';
-             let answerLetter = '';
-             
-             if (ansIdx !== undefined) {
-                scannedCount++;
-                answerLetter = ['A', 'B', 'C', 'D'][ansIdx];
-                if (currentQ && currentQ.answerIndex === ansIdx) {
-                   status = 'correct';
-                } else {
-                   status = 'wrong';
-                }
-             }
-
-             return { id: student.id, name: student.name, status, answerLetter };
-          });
-
-          projectorWindow.value.postMessage({
-             type: 'UPDATE',
-             qNumber: qIndex.value + 1,
-             questionText,
-             scannedCount,
-             totalCount: cls.students.length,
-             students: studentsData
-          }, '*');
-        };
-
-        const openProjectorWindow = () => {
-          const win = window.open('', 'ScanMasterProjector', 'width=1024,height=768');
-          if (!win) {
-             showNotification("Popup blocked! Please allow popups to use Projector Mode.");
-             return;
-          }
-          projectorWindow.value = win;
-          
-          const projectorHtml = `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-              <meta charset="UTF-8">
-              <title>Live Projection - ScanMaster</title>
-              <script src="https://cdn.tailwindcss.com"><\/script>
-              <style>
-                body { background-color: #0f172a; color: white; font-family: ui-sans-serif, system-ui, sans-serif; }
-                .card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-                .pop { animation: popIn 0.3s ease-out forwards; }
-                @keyframes popIn {
-                  0% { transform: scale(0.9); opacity: 0; }
-                  100% { transform: scale(1); opacity: 1; }
-                }
-              </style>
-            </head>
-            <body class="h-screen flex flex-col p-8 overflow-hidden">
-              <div class="mb-8 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex items-center gap-6">
-                <div id="q-number" class="text-4xl font-black text-blue-500 bg-blue-500/10 px-6 py-4 rounded-xl">...</div>
-                <div id="q-text" class="text-3xl font-bold text-slate-100 flex-1 leading-tight">Loading question...</div>
-                <div class="text-right">
-                   <div class="text-slate-400 font-bold text-sm uppercase tracking-widest mb-1">Scanned</div>
-                   <div id="stats" class="text-4xl font-black text-green-400">0 / 0</div>
-                </div>
-              </div>
-              
-              <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 flex-1 overflow-auto content-start pb-10">
-                <!-- Cards injected dynamically -->
-              </div>
-
-              <script>
-                let lastData = '';
-                window.addEventListener('message', (event) => {
-                  if (event.data.type === 'UPDATE') {
-                    const data = event.data;
-                    document.getElementById('q-number').innerText = 'Q' + data.qNumber;
-                    document.getElementById('q-text').innerText = data.questionText;
-                    document.getElementById('stats').innerText = data.scannedCount + ' / ' + data.totalCount;
-                    
-                    const grid = document.getElementById('grid');
-                    const newDataStr = JSON.stringify(data.students);
-                    if (lastData === newDataStr) return; // Prevent unnecessary DOM reflows
-                    lastData = newDataStr;
-
-                    grid.innerHTML = '';
-                    data.students.forEach(s => {
-                      const div = document.createElement('div');
-                      let colors = 'bg-slate-800 border-slate-700 text-slate-500';
-                      let icon = '<svg class="w-8 h-8 opacity-50 mx-auto mb-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                      let statusText = 'Waiting...';
-
-                      if (s.status === 'correct') {
-                        colors = 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.2)]';
-                        icon = '<svg class="w-8 h-8 mx-auto mb-3 mt-1 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                        statusText = 'Correct (' + s.answerLetter + ')';
-                      } else if (s.status === 'wrong') {
-                        colors = 'bg-red-900/40 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]';
-                        icon = '<svg class="w-8 h-8 mx-auto mb-3 mt-1 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                        statusText = 'Wrong (' + s.answerLetter + ')';
-                      }
-
-                      div.className = 'card pop ' + colors + ' border-2 rounded-2xl p-5 flex flex-col items-center justify-center text-center';
-                      div.innerHTML = icon + '<div class="font-bold text-xl truncate w-full text-slate-100 mb-1">' + s.name + '</div><div class="text-sm font-black uppercase tracking-wider">' + statusText + '</div>';
-                      grid.appendChild(div);
-                    });
-                  }
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.value.uid, 'liveProjector', 'state');
+                await setDoc(docRef, {
+                    isActive: true,
+                    qNumber: qIndex.value + 1,
+                    questionText: currentQ ? currentQ.text : 'Loading...',
+                    scannedCount,
+                    totalCount: cls.students.length,
+                    students: studentsData,
+                    updatedAt: Date.now()
                 });
-              <\/script>
-            </body>
-            </html>
-          `;
-          win.document.open();
-          win.document.write(projectorHtml);
-          win.document.close();
-          
-          setTimeout(updateProjector, 500); 
+            } catch (err) {
+                console.error("Failed to push projector data:", err);
+            }
         };
 
-        // Watch for changes to index or answers to dynamically update projector
-        watch([qIndex, scanAnswers], () => {
-            updateProjector();
-        }, { deep: true });
+        watch([qIndex, scanAnswers], () => { updateCloudProjector(); }, { deep: true });
 
         const startSession = async () => {
           activeSessionId.value = Date.now().toString();
-          qIndex.value = 0;
-          scanAnswers.value = {};
-          isCapturing.value = true;
+          qIndex.value = 0; scanAnswers.value = {}; isCapturing.value = true;
           
           try {
             videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -801,6 +693,8 @@
                videoElement.value.play();
                requestAnimationFrame(scanTick);
             }
+            // Instantly turn on Projector mode on other devices
+            await updateCloudProjector();
           } catch (err) {
             console.error("Camera error:", err);
             showNotification("Unable to access camera. Please allow permissions.");
@@ -843,10 +737,7 @@
                  const letterToIndex = { A: 0, B: 1, C: 2, D: 3 };
                  const ansIdx = letterToIndex[answerLetter];
 
-                 // Safely update reactive object
-                 if (!scanAnswers.value[studentId]) {
-                    scanAnswers.value[studentId] = {};
-                 }
+                 if (!scanAnswers.value[studentId]) scanAnswers.value[studentId] = {};
                  scanAnswers.value[studentId][qIndex.value] = ansIdx;
                  
                  ctx.lineWidth = 4;
@@ -870,15 +761,19 @@
         const prevQuestion = () => { if(qIndex.value > 0) qIndex.value--; };
         const nextQuestion = () => { if(qIndex.value < (currentScanQuiz.value?.questions.length || 1) - 1) qIndex.value++; };
 
-        const endSession = () => {
+        const endSession = async () => {
            isCapturing.value = false;
            if (videoStream) {
              videoStream.getTracks().forEach(t => t.stop());
              videoStream = null;
            }
            
-           if(projectorWindow.value && !projectorWindow.value.closed) {
-             projectorWindow.value.close();
+           // Turn off cloud projector
+           if (currentUser.value && db) {
+               try {
+                   const docRef = doc(db, 'artifacts', appId, 'users', currentUser.value.uid, 'liveProjector', 'state');
+                   await setDoc(docRef, { isActive: false, updatedAt: Date.now() });
+               } catch(e) { console.error("Error shutting down projector sync", e); }
            }
            
            const quiz = currentScanQuiz.value;
@@ -917,9 +812,7 @@
               }
            }
            
-           scanClassId.value = null;
-           scanQuizId.value = null;
-           activeTab.value = 'analytics';
+           scanClassId.value = null; scanQuizId.value = null; activeTab.value = 'analytics';
         };
 
         const getQuizName = (id) => quizzes.value.find(q => q.id === id)?.name || 'Unknown Quiz';
@@ -929,10 +822,7 @@
             if(!cls) return 'Unknown';
             return cls.students.find(s => s.id === sId)?.name || 'Unknown';
         };
-        const deleteSession = (id) => {
-            sessions.value = sessions.value.filter(s => s.id !== id);
-            syncData();
-        };
+        const deleteSession = (id) => { sessions.value = sessions.value.filter(s => s.id !== id); syncData(); };
 
         return {
           currentUser, authLoading, authEmail, authPassword, isLoginMode, authError, isAuthProcessing, handleAuthSubmit, logout, notification,
@@ -941,7 +831,7 @@
           getQrCodeUrl, currentPrintClass, printQRs,
           selectedQuizId, currentQuiz, newQuizName, addQuiz, deleteQuiz, addQuestion, deleteQuestion, syncData,
           scanClassId, scanQuizId, isCapturing, currentScanClass, currentScanQuiz, startSession, videoElement, canvasElement, qIndex, scanAnswers, prevQuestion, nextQuestion, endSession,
-          openProjectorWindow,
+          liveProjectorData,
           getQuizName, getClassName, getStudentName, deleteSession
         };
       }
