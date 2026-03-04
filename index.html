@@ -96,24 +96,19 @@
       </div>
     </div>
 
-    <!-- Header / Logout -->
-    <div v-if="currentUser && !authLoading" class="fixed top-3 right-4 z-[9000] flex items-center gap-3 print-hide">
-      <span class="hidden md:inline-block text-sm font-bold text-slate-700 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm border border-slate-200">
-        {{ currentUser.email || 'Anonymous User' }}
-      </span>
-      <button @click="logout" type="button" class="bg-white/90 backdrop-blur border border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-700 px-4 py-2 rounded-full shadow-sm font-bold transition-all text-sm flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-        Logout
-      </button>
-    </div>
-
     <!-- Sidebar Navigation -->
     <aside v-if="currentUser && !authLoading" class="w-full md:w-64 bg-slate-900 text-white flex flex-col print-hide shrink-0 z-10">
-      <div class="p-4 text-2xl font-black border-b border-slate-800 flex items-center gap-3 tracking-tight">
-        <svg class="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-        ScanMaster
+      <div class="p-4 text-2xl font-black border-b border-slate-800 flex items-center justify-between tracking-tight">
+        <div class="flex items-center gap-3">
+          <svg class="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          ScanMaster
+        </div>
+        <!-- Mobile Logout -->
+        <button @click="logout" class="md:hidden text-slate-400 hover:text-red-400 p-2 bg-slate-800 rounded-full transition-colors" title="Logout">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
       </div>
-      <nav class="flex-1 p-4 space-y-2 flex flex-row md:flex-col overflow-x-auto md:overflow-visible font-medium">
+      <nav class="p-4 space-y-2 flex flex-row md:flex-col overflow-x-auto md:overflow-visible font-medium">
         <button @click="activeTab = 'classes'" :class="{'bg-blue-600 shadow-md': activeTab === 'classes', 'hover:bg-slate-800': activeTab !== 'classes'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
           Classes
@@ -130,15 +125,29 @@
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
           Live Projector
         </button>
-        <button @click="activeTab = 'analytics'" :class="{'bg-blue-600 shadow-md': activeTab === 'analytics', 'hover:bg-slate-800': activeTab !== 'analytics'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 shrink-0 md:mt-auto">
+        <button @click="activeTab = 'analytics'" :class="{'bg-blue-600 shadow-md': activeTab === 'analytics', 'hover:bg-slate-800': activeTab !== 'analytics'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
           Analytics
         </button>
       </nav>
+      
+      <!-- Desktop Logout / User Info (Lower Left) -->
+      <div class="p-4 border-t border-slate-800 hidden md:block mt-auto">
+        <div class="text-sm font-bold text-slate-400 mb-3 truncate flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 shrink-0 border border-slate-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+          </div>
+          <span class="truncate">{{ currentUser.email || 'Anonymous User' }}</span>
+        </div>
+        <button @click="logout" type="button" class="w-full bg-slate-800/50 hover:bg-red-500/10 hover:text-red-400 text-slate-300 border border-slate-700 hover:border-red-500/50 px-4 py-2.5 rounded-xl shadow-sm font-bold transition-all text-sm flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          Logout
+        </button>
+      </div>
     </aside>
 
     <!-- Main Content -->
-    <main v-if="currentUser && !authLoading" class="flex-1 overflow-auto p-4 md:p-8 relative pt-16 md:pt-8" :class="{'!p-0 !pt-0': activeTab === 'projector'}">
+    <main v-if="currentUser && !authLoading" class="flex-1 overflow-auto p-4 md:p-8 relative" :class="{'!p-0': activeTab === 'projector'}">
 
       <!-- CLASSES TAB -->
       <div v-if="activeTab === 'classes'" class="space-y-6 h-full flex flex-col">
@@ -297,7 +306,8 @@
            </div>
         </div>
         <div v-else class="flex flex-col lg:flex-row gap-6 h-full pb-10">
-           <div class="flex-1 flex flex-col bg-slate-900 rounded-2xl overflow-hidden relative shadow-lg">
+           <!-- Mobile Fixes: Added min-h-[60vh] to ensure area does not collapse, and kept the video tag in the DOM structure with specific attributes for iOS/Android camera playability -->
+           <div class="flex-1 w-full min-h-[60vh] flex flex-col bg-slate-900 rounded-2xl overflow-hidden relative shadow-lg">
               <div class="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-10 text-white pointer-events-none">
                  <div class="max-w-lg pointer-events-auto">
                     <div class="font-black text-2xl mb-1 text-blue-400 drop-shadow">Question {{ qIndex + 1 }} <span class="text-slate-400 text-lg font-bold">of {{ currentScanQuiz?.questions.length }}</span></div>
@@ -310,8 +320,9 @@
                  </div>
               </div>
               
-              <video ref="videoElement" class="hidden" playsinline></video>
-              <canvas ref="canvasElement" class="w-full h-full object-cover"></canvas>
+              <!-- Crucial for mobile: Opacity 0 to hide visually, but kept in DOM to decode frames -->
+              <video ref="videoElement" class="absolute opacity-0 pointer-events-none w-[1px] h-[1px] -z-10" playsinline autoplay muted></video>
+              <canvas ref="canvasElement" class="absolute inset-0 w-full h-full object-cover z-0"></canvas>
               
               <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end z-10">
                  <div class="bg-black/70 px-5 py-3 rounded-xl text-white font-black backdrop-blur-sm border border-white/10 text-lg flex items-center shadow-lg">
@@ -321,7 +332,7 @@
               </div>
            </div>
            
-           <div class="w-full lg:w-80 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden shrink-0">
+           <div class="w-full lg:w-80 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden shrink-0 min-h-[30vh]">
               <div class="p-4 bg-slate-50 border-b border-slate-200 font-black text-slate-800 flex justify-between items-center text-lg">
                  Live Feed (Q{{ qIndex + 1 }})
                  <div class="animate-pulse w-3 h-3 bg-red-500 rounded-full"></div>
@@ -350,7 +361,7 @@
          
          <div v-else class="flex flex-col h-full w-full bg-slate-900 relative">
             
-            <!-- Toolbar Overlay (Fades out when inactive or full screen, but kept simple here) -->
+            <!-- Toolbar Overlay -->
             <div class="absolute top-4 right-4 z-[50] flex gap-3 opacity-50 hover:opacity-100 transition-opacity">
                 <button @click="toggleFullscreen" class="bg-white/10 backdrop-blur border border-white/20 hover:bg-white/20 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
@@ -836,9 +847,20 @@
           try {
             videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             await nextTick();
+            
             if (videoElement.value) {
                videoElement.value.srcObject = videoStream;
-               videoElement.value.play();
+               // explicitly set attributes required by iOS
+               videoElement.value.setAttribute('playsinline', 'true');
+               videoElement.value.setAttribute('autoplay', 'true');
+               videoElement.value.setAttribute('muted', 'true');
+               
+               const playPromise = videoElement.value.play();
+               if (playPromise !== undefined) {
+                   playPromise.catch(err => {
+                       console.error("Video auto-play prevented:", err);
+                   });
+               }
                requestAnimationFrame(scanTick);
             }
             await updateCloudProjector();
