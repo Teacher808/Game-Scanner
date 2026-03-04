@@ -40,28 +40,88 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex overflow-hidden">
   
-  <div id="app" v-cloak class="w-full h-full flex flex-col md:flex-row">
+  <div id="app" v-cloak class="w-full h-full flex flex-col md:flex-row relative">
     
+    <!-- Notification Toast -->
+    <div v-if="notification" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[10000] bg-slate-800 text-white px-6 py-3 rounded-xl shadow-2xl transition-all font-medium text-sm border border-slate-700">
+       {{ notification }}
+    </div>
+
+    <!-- Initial Auth Loading Overlay -->
+    <div v-if="authLoading" class="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-50 print-hide">
+      <div class="flex flex-col items-center gap-4">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p class="text-slate-600 font-medium animate-pulse">Authenticating...</p>
+      </div>
+    </div>
+
+    <!-- Authentication Overlay (Covers app when not logged in) -->
+    <div v-else-if="!currentUser" class="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50 p-4 print-hide">
+      <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-slate-200">
+        <div class="flex justify-center mb-6 text-blue-600">
+          <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+        </div>
+        <h2 class="text-3xl font-black text-center text-slate-800 mb-8">{{ isLoginMode ? 'Welcome Back' : 'Create Account' }}</h2>
+
+        <form @submit.prevent="handleAuthSubmit" class="space-y-5">
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
+            <input v-model="authEmail" type="email" required class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow bg-slate-50" placeholder="you@example.com">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-2">Password</label>
+            <input v-model="authPassword" type="password" required class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow bg-slate-50" placeholder="••••••••">
+          </div>
+
+          <div v-if="authError" class="p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl font-medium">
+            {{ authError }}
+          </div>
+
+          <button type="submit" :disabled="isAuthProcessing" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center text-lg mt-2">
+            <span v-if="isAuthProcessing" class="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+            {{ isLoginMode ? 'Sign In' : 'Sign Up' }}
+          </button>
+        </form>
+
+        <div class="mt-8 text-center text-sm">
+          <button @click="isLoginMode = !isLoginMode" type="button" class="text-blue-600 hover:text-blue-800 font-bold transition-colors">
+            {{ isLoginMode ? 'Need an account? Sign up' : 'Already have an account? Sign in' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global Header / Logout Button -->
+    <div v-if="currentUser && !authLoading" class="fixed top-3 right-4 z-[9000] flex items-center gap-3 print-hide">
+      <span class="hidden md:inline-block text-sm font-bold text-slate-700 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm border border-slate-200">
+        {{ currentUser.email || 'Anonymous User' }}
+      </span>
+      <button @click="logout" type="button" class="bg-white/90 backdrop-blur border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-700 px-4 py-2 rounded-full shadow-sm font-bold transition-all text-sm flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        Logout
+      </button>
+    </div>
+
     <!-- Sidebar / Navigation -->
-    <aside class="w-full md:w-64 bg-slate-900 text-white flex flex-col print-hide shrink-0">
-      <div class="p-4 text-2xl font-bold border-b border-slate-700 flex items-center gap-2">
-        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+    <aside v-if="currentUser && !authLoading" class="w-full md:w-64 bg-slate-900 text-white flex flex-col print-hide shrink-0 z-10">
+      <div class="p-4 text-2xl font-black border-b border-slate-800 flex items-center gap-3 tracking-tight">
+        <svg class="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
         ScanMaster
       </div>
-      <nav class="flex-1 p-4 space-y-2 flex flex-row md:flex-col overflow-x-auto md:overflow-visible">
-        <button @click="activeTab = 'classes'" :class="{'bg-blue-600': activeTab === 'classes'}" class="w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors shrink-0">
+      <nav class="flex-1 p-4 space-y-2 flex flex-row md:flex-col overflow-x-auto md:overflow-visible font-medium">
+        <button @click="activeTab = 'classes'" :class="{'bg-blue-600 shadow-md': activeTab === 'classes', 'hover:bg-slate-800': activeTab !== 'classes'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
           Classes
         </button>
-        <button @click="activeTab = 'quizzes'" :class="{'bg-blue-600': activeTab === 'quizzes'}" class="w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors shrink-0">
+        <button @click="activeTab = 'quizzes'" :class="{'bg-blue-600 shadow-md': activeTab === 'quizzes', 'hover:bg-slate-800': activeTab !== 'quizzes'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
           Quizzes
         </button>
-        <button @click="activeTab = 'scan'" :class="{'bg-blue-600': activeTab === 'scan'}" class="w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors shrink-0">
+        <button @click="activeTab = 'scan'" :class="{'bg-blue-600 shadow-md': activeTab === 'scan', 'hover:bg-slate-800': activeTab !== 'scan'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
           Scan Session
         </button>
-        <button @click="activeTab = 'analytics'" :class="{'bg-blue-600': activeTab === 'analytics'}" class="w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors shrink-0">
+        <button @click="activeTab = 'analytics'" :class="{'bg-blue-600 shadow-md': activeTab === 'analytics', 'hover:bg-slate-800': activeTab !== 'analytics'}" class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
           Analytics
         </button>
@@ -69,86 +129,97 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto p-4 md:p-8 relative">
-      
-      <!-- Auth Warning Banner -->
-      <div v-if="authWarning" class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-3 shadow-sm print-hide" role="alert">
-        <svg class="w-6 h-6 text-yellow-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-        <div>
-          <p class="font-bold">Notice</p>
-          <p class="text-sm">{{ authWarning }}</p>
-        </div>
-      </div>
+    <main v-if="currentUser && !authLoading" class="flex-1 overflow-auto p-4 md:p-8 relative pt-16 md:pt-8">
 
       <!-- CLASSES TAB -->
-      <div v-if="activeTab === 'classes'" class="space-y-6">
-        <div class="flex flex-col lg:flex-row gap-6">
+      <div v-if="activeTab === 'classes'" class="space-y-6 h-full flex flex-col">
+        <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
           
           <!-- Class List -->
           <div class="w-full lg:w-1/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]">
-            <h2 class="text-xl font-bold mb-4">Your Classes</h2>
+            <h2 class="text-2xl font-black mb-6 text-slate-800">Your Classes</h2>
             <div class="flex gap-2 mb-4">
-              <input v-model="newClassName" @keyup.enter="addClass" placeholder="New class name..." class="flex-1 px-3 py-2 border rounded-lg border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button @click="addClass" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">Add</button>
+              <input v-model="newClassName" @keyup.enter="addClass" placeholder="New class name..." class="flex-1 px-4 py-3 bg-slate-50 border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+              <button @click="addClass" class="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm">Add</button>
             </div>
             <ul class="space-y-2 overflow-auto flex-1 pr-2">
-              <li v-if="classes.length === 0" class="text-slate-500 italic text-center mt-8">No classes created yet.</li>
-              <li v-for="cls in classes" :key="cls.id" @click="selectedClassId = cls.id" :class="{'bg-blue-50 border-blue-200 text-blue-900': selectedClassId === cls.id, 'hover:bg-slate-50 border-transparent text-slate-700': selectedClassId !== cls.id}" class="cursor-pointer p-3 border rounded-xl transition-colors flex justify-between items-center group">
+              <li v-if="classes.length === 0" class="text-slate-500 italic text-center mt-8 font-medium">No classes created yet.</li>
+              <li v-for="cls in classes" :key="cls.id" @click="selectedClassId = cls.id" :class="{'bg-blue-50 border-blue-200 text-blue-900 shadow-sm': selectedClassId === cls.id, 'hover:bg-slate-50 border-slate-100 text-slate-700': selectedClassId !== cls.id}" class="cursor-pointer p-4 border rounded-xl transition-all flex justify-between items-center group">
                 <span class="font-bold">{{ cls.name }}</span>
-                <span class="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-full group-hover:bg-blue-200">{{ cls.students.length }} Students</span>
+                <span class="text-xs bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full group-hover:bg-blue-200 font-bold transition-colors">{{ cls.students.length }} Students</span>
               </li>
             </ul>
           </div>
 
           <!-- Class Roster -->
           <div class="w-full lg:w-2/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]" v-if="currentClass">
-            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-              <h2 class="text-2xl font-bold text-slate-800">{{ currentClass.name }} Roster</h2>
-              <button @click="printQRs(currentClass)" class="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
+              <h2 class="text-3xl font-black text-slate-800">{{ currentClass.name }} Roster</h2>
+              <button @click="printQRs(currentClass)" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-700 transition flex items-center justify-center gap-2 shadow-sm">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                 Print QR Cards
               </button>
             </div>
             
-            <div class="flex gap-2 mb-6">
-              <input v-model="newStudentName" @keyup.enter="addStudent(selectedClassId)" placeholder="Type student name..." class="flex-1 px-4 py-2 border rounded-lg border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button @click="addStudent(selectedClassId)" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition">Add Student</button>
+            <!-- Add Student Controls -->
+            <div class="flex items-start gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div class="flex-1">
+                 <!-- Single Add -->
+                 <input v-if="!showBulkAdd" v-model="newStudentName" @keyup.enter="addStudent(selectedClassId)" placeholder="Type student name..." class="w-full px-4 py-3 bg-white border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+                 <!-- Bulk Add -->
+                 <textarea v-else v-model="bulkStudentText" placeholder="Paste multiple student names (one per line)..." class="w-full px-4 py-3 bg-white border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium" rows="3"></textarea>
+              </div>
+              <div class="flex flex-col gap-2 shrink-0">
+                 <button v-if="!showBulkAdd" @click="addStudent(selectedClassId)" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition w-full shadow-sm">Add Student</button>
+                 <button v-else @click="bulkAddStudents(selectedClassId)" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition w-full shadow-sm">Add All</button>
+                 <button @click="showBulkAdd = !showBulkAdd" class="text-sm text-slate-500 hover:text-blue-600 font-bold text-center transition-colors py-1">
+                    {{ showBulkAdd ? 'Switch to Single Add' : 'Use Bulk Add' }}
+                 </button>
+              </div>
             </div>
             
             <div class="flex-1 overflow-auto pr-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-8 content-start">
-               <div v-if="currentClass.students.length === 0" class="col-span-full text-slate-500 italic text-center mt-8">No students in this class yet.</div>
-               <div v-for="student in currentClass.students" :key="student.id" class="p-4 border rounded-xl border-slate-200 text-center flex flex-col items-center bg-slate-50 relative group">
-                  <button @click="deleteStudent(currentClass, student.id)" class="absolute top-2 right-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+               <div v-if="currentClass.students.length === 0" class="col-span-full text-slate-500 italic text-center mt-8 font-medium">No students in this class yet.</div>
+               <div v-for="student in currentClass.students" :key="student.id" class="p-4 border rounded-xl border-slate-200 text-center flex flex-col items-center bg-white relative group shadow-sm hover:shadow-md transition-shadow">
+                  <button @click="deleteStudent(currentClass, student.id)" class="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 rounded-full p-1.5">
+                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                   </button>
                   <span class="font-bold mb-3 text-slate-700 w-full truncate">{{ student.name }}</span>
-                  <img :src="getQrCodeUrl(student.id)" class="w-24 h-24 object-contain" alt="QR Code" />
+                  <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <img :src="student.qrCode || getQrCodeUrl(student.id)" class="w-24 h-24 object-contain mix-blend-multiply" alt="QR Code" />
+                  </div>
                </div>
             </div>
           </div>
           
-          <div class="w-full lg:w-2/3 flex items-center justify-center text-slate-400 font-medium h-[75vh]" v-else>
+          <div class="w-full lg:w-2/3 flex flex-col items-center justify-center text-slate-400 font-medium h-[75vh] bg-white rounded-2xl border border-slate-200 border-dashed" v-else>
+             <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
              Select a class to view its roster and print QR cards.
           </div>
         </div>
       </div>
 
       <!-- QUIZZES TAB -->
-      <div v-if="activeTab === 'quizzes'" class="space-y-6">
-        <div class="flex flex-col lg:flex-row gap-6">
+      <div v-if="activeTab === 'quizzes'" class="space-y-6 h-full flex flex-col">
+        <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
           
           <!-- Quiz List -->
           <div class="w-full lg:w-1/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]">
-            <h2 class="text-xl font-bold mb-4">Quizzes</h2>
+            <h2 class="text-2xl font-black mb-6 text-slate-800">Your Quizzes</h2>
             <div class="flex gap-2 mb-4">
-              <input v-model="newQuizName" @keyup.enter="addQuiz" placeholder="New quiz title..." class="flex-1 px-3 py-2 border rounded-lg border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button @click="addQuiz" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">Add</button>
+              <input v-model="newQuizName" @keyup.enter="addQuiz" placeholder="New quiz title..." class="flex-1 px-4 py-3 bg-slate-50 border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+              <button @click="addQuiz" class="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm">Add</button>
             </div>
             <ul class="space-y-2 overflow-auto flex-1 pr-2">
-              <li v-if="quizzes.length === 0" class="text-slate-500 italic text-center mt-8">No quizzes created yet.</li>
-              <li v-for="quiz in quizzes" :key="quiz.id" @click="selectedQuizId = quiz.id" :class="{'bg-blue-50 border-blue-200 text-blue-900': selectedQuizId === quiz.id, 'hover:bg-slate-50 border-transparent text-slate-700': selectedQuizId !== quiz.id}" class="cursor-pointer p-3 border rounded-xl transition-colors flex justify-between items-center">
+              <li v-if="quizzes.length === 0" class="text-slate-500 italic text-center mt-8 font-medium">No quizzes created yet.</li>
+              <li v-for="quiz in quizzes" :key="quiz.id" @click="selectedQuizId = quiz.id" :class="{'bg-blue-50 border-blue-200 text-blue-900 shadow-sm': selectedQuizId === quiz.id, 'hover:bg-slate-50 border-slate-100 text-slate-700': selectedQuizId !== quiz.id}" class="cursor-pointer p-4 border rounded-xl transition-all flex justify-between items-center group">
                 <span class="font-bold">{{ quiz.name }}</span>
-                <span class="text-xs bg-slate-200 px-2 py-1 rounded-full text-slate-700">{{ quiz.questions.length }} Qs</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs bg-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-bold transition-colors">{{ quiz.questions.length }} Qs</span>
+                  <button @click.stop="deleteQuiz(quiz.id)" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>
+                </div>
               </li>
             </ul>
           </div>
@@ -156,32 +227,33 @@
           <!-- Quiz Editor -->
           <div class="w-full lg:w-2/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]" v-if="currentQuiz">
             <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
-              <h2 class="text-2xl font-bold text-slate-800">{{ currentQuiz.name }}</h2>
-              <button @click="addQuestion(selectedQuizId)" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-700 transition">+ Add Question</button>
+              <h2 class="text-3xl font-black text-slate-800">{{ currentQuiz.name }}</h2>
+              <button @click="addQuestion(selectedQuizId)" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm">+ Add Question</button>
             </div>
             
             <div class="flex-1 overflow-auto pr-2 space-y-6 pb-8">
-               <div v-if="currentQuiz.questions.length === 0" class="text-slate-500 italic text-center mt-8">Click "Add Question" to build your quiz.</div>
-               <div v-for="(q, index) in currentQuiz.questions" :key="q.id" class="p-5 border rounded-xl border-slate-200 bg-slate-50 relative group">
-                  <button @click="deleteQuestion(currentQuiz, index)" class="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition-colors">
-                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+               <div v-if="currentQuiz.questions.length === 0" class="text-slate-500 italic text-center mt-8 font-medium">Click "Add Question" to build your quiz.</div>
+               <div v-for="(q, index) in currentQuiz.questions" :key="q.id" class="p-5 border rounded-xl border-slate-200 bg-slate-50 relative group shadow-sm">
+                  <button @click="deleteQuestion(currentQuiz, index)" class="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition-colors bg-white rounded-full shadow-sm p-1.5 border border-slate-100">
+                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                   </button>
-                  <div class="flex gap-4 mb-4 pr-8">
-                     <span class="font-black text-xl text-blue-600 mt-2">Q{{ index + 1 }}</span>
-                     <textarea v-model="q.text" @change="syncData" placeholder="Enter question text here..." rows="2" class="flex-1 p-3 border rounded-lg border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium text-slate-700"></textarea>
+                  <div class="flex gap-4 mb-5 pr-8">
+                     <span class="font-black text-2xl text-blue-600 mt-1">Q{{ index + 1 }}</span>
+                     <textarea v-model="q.text" @change="syncData" placeholder="Enter question text here..." rows="2" class="flex-1 p-3 border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium text-slate-800 bg-white"></textarea>
                   </div>
-                  <div class="pl-11 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                     <label v-for="(opt, oIndex) in q.options" :key="oIndex" :class="q.answerIndex === oIndex ? 'bg-green-100 border-green-400' : 'bg-white border-slate-200'" class="flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors">
-                        <input type="radio" :name="`q_${q.id}`" :value="oIndex" v-model="q.answerIndex" @change="syncData" class="w-5 h-5 text-blue-600 focus:ring-blue-500" />
-                        <span class="font-bold text-slate-500 w-5">{{ ['A','B','C','D'][oIndex] }}.</span>
-                        <input v-model="q.options[oIndex]" @change="syncData" placeholder="Option text..." class="flex-1 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none text-slate-700 font-medium" />
+                  <div class="pl-12 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                     <label v-for="(opt, oIndex) in q.options" :key="oIndex" :class="q.answerIndex === oIndex ? 'bg-green-100 border-green-500 shadow-sm' : 'bg-white border-slate-200'" class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors">
+                        <input type="radio" :name="`q_${q.id}`" :value="oIndex" v-model="q.answerIndex" @change="syncData" class="w-5 h-5 text-green-600 focus:ring-green-500" />
+                        <span class="font-black text-slate-500 w-5">{{ ['A','B','C','D'][oIndex] }}.</span>
+                        <input v-model="q.options[oIndex]" @change="syncData" placeholder="Option text..." class="flex-1 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none text-slate-800 font-medium" />
                      </label>
                   </div>
                </div>
             </div>
           </div>
           
-          <div class="w-full lg:w-2/3 flex items-center justify-center text-slate-400 font-medium h-[75vh]" v-else>
+          <div class="w-full lg:w-2/3 flex flex-col items-center justify-center text-slate-400 font-medium h-[75vh] bg-white rounded-2xl border border-slate-200 border-dashed" v-else>
+             <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
              Select a quiz to view and edit its questions.
           </div>
         </div>
@@ -196,19 +268,19 @@
            <div class="space-y-6">
               <div>
                  <label class="block text-sm font-bold text-slate-700 mb-2">Select Class</label>
-                 <select v-model="scanClassId" class="w-full p-3 border rounded-xl border-slate-300 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                 <select v-model="scanClassId" class="w-full p-4 border rounded-xl border-slate-300 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700">
                     <option :value="null" disabled>Choose a class...</option>
                     <option v-for="cls in classes" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
                  </select>
               </div>
               <div>
                  <label class="block text-sm font-bold text-slate-700 mb-2">Select Quiz</label>
-                 <select v-model="scanQuizId" class="w-full p-3 border rounded-xl border-slate-300 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                 <select v-model="scanQuizId" class="w-full p-4 border rounded-xl border-slate-300 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700">
                     <option :value="null" disabled>Choose a quiz...</option>
                     <option v-for="q in quizzes" :key="q.id" :value="q.id">{{ q.name }}</option>
                  </select>
               </div>
-              <button @click="startSession" :disabled="!scanClassId || !scanQuizId" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-md transition-all">Start Scanning Room</button>
+              <button @click="startSession" :disabled="!scanClassId || !scanQuizId" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-md transition-all">Start Scanning Room</button>
            </div>
         </div>
 
@@ -221,12 +293,12 @@
               <!-- Top Overlay HUD -->
               <div class="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-10 text-white">
                  <div class="max-w-lg">
-                    <div class="font-black text-2xl mb-1 text-blue-400">Question {{ qIndex + 1 }} <span class="text-slate-400 text-lg font-medium">of {{ currentScanQuiz?.questions.length }}</span></div>
-                    <div class="font-medium text-lg text-slate-200 drop-shadow-md leading-tight">{{ currentScanQuiz?.questions[qIndex]?.text }}</div>
+                    <div class="font-black text-2xl mb-1 text-blue-400">Question {{ qIndex + 1 }} <span class="text-slate-400 text-lg font-bold">of {{ currentScanQuiz?.questions.length }}</span></div>
+                    <div class="font-bold text-lg text-slate-200 drop-shadow-md leading-tight">{{ currentScanQuiz?.questions[qIndex]?.text }}</div>
                  </div>
-                 <div class="flex gap-2 shrink-0">
-                    <button @click="prevQuestion" :disabled="qIndex === 0" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold disabled:opacity-50 transition-colors">&larr; Prev</button>
-                    <button @click="nextQuestion" :disabled="qIndex === (currentScanQuiz?.questions.length || 1) - 1" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold disabled:opacity-50 transition-colors">Next &rarr;</button>
+                 <div class="flex gap-2 shrink-0 mt-2">
+                    <button @click="prevQuestion" :disabled="qIndex === 0" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50 transition-colors">&larr; Prev</button>
+                    <button @click="nextQuestion" :disabled="qIndex === (currentScanQuiz?.questions.length || 1) - 1" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50 transition-colors">Next &rarr;</button>
                  </div>
               </div>
               
@@ -235,26 +307,26 @@
               
               <!-- Bottom Overlay HUD -->
               <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end z-10">
-                 <div class="bg-black/60 px-4 py-2 rounded-lg text-white font-bold backdrop-blur-sm border border-white/10">
-                    Scanned: <span class="text-green-400">{{ Object.keys(scanAnswers).filter(id => scanAnswers[id][qIndex] !== undefined).length }}</span> / {{ currentScanClass?.students.length }}
+                 <div class="bg-black/70 px-5 py-3 rounded-xl text-white font-black backdrop-blur-sm border border-white/10 text-lg">
+                    Scanned: <span class="text-green-400 text-2xl">{{ Object.keys(scanAnswers).filter(id => scanAnswers[id][qIndex] !== undefined).length }}</span> / {{ currentScanClass?.students.length }}
                  </div>
-                 <button @click="endSession" class="bg-red-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-700 shadow-lg border border-red-800 transition-colors text-lg">Finish Session</button>
+                 <button @click="endSession" class="bg-red-600 text-white px-8 py-4 rounded-xl font-black hover:bg-red-700 shadow-lg border border-red-800 transition-colors text-xl">Finish Session</button>
               </div>
            </div>
            
            <!-- Live Results Sidebar -->
            <div class="w-full lg:w-80 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden shrink-0">
-              <div class="p-4 bg-slate-100 border-b border-slate-200 font-bold text-slate-800 flex justify-between items-center">
+              <div class="p-4 bg-slate-50 border-b border-slate-200 font-black text-slate-800 flex justify-between items-center text-lg">
                  Live Feed (Q{{ qIndex + 1 }})
                  <div class="animate-pulse w-3 h-3 bg-red-500 rounded-full"></div>
               </div>
               <ul class="flex-1 overflow-auto p-3 space-y-2">
-                 <li v-for="student in currentScanClass?.students" :key="student.id" class="p-3 rounded-lg flex justify-between items-center border transition-all" :class="scanAnswers[student.id] && scanAnswers[student.id][qIndex] !== undefined ? 'bg-green-50 border-green-200 text-green-900 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'">
+                 <li v-for="student in currentScanClass?.students" :key="student.id" class="p-3 rounded-xl flex justify-between items-center border transition-all" :class="scanAnswers[student.id] && scanAnswers[student.id][qIndex] !== undefined ? 'bg-green-50 border-green-200 text-green-900 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'">
                     <span class="font-bold truncate pr-2">{{ student.name }}</span>
                     <span v-if="scanAnswers[student.id] && scanAnswers[student.id][qIndex] !== undefined" class="font-black text-lg w-8 text-center bg-green-200 rounded text-green-800 shrink-0">
                        {{ ['A','B','C','D'][scanAnswers[student.id][qIndex]] }}
                     </span>
-                    <span v-else class="text-xs italic bg-slate-200 px-2 py-1 rounded shrink-0 text-slate-500">Waiting</span>
+                    <span v-else class="text-xs font-bold bg-slate-200 px-2 py-1 rounded shrink-0 text-slate-500 uppercase">Waiting</span>
                  </li>
               </ul>
            </div>
@@ -267,21 +339,21 @@
             <h2 class="text-3xl font-black text-slate-800">Past Sessions</h2>
          </div>
          
-         <div v-if="sessions.length === 0" class="text-slate-500 italic bg-white p-8 rounded-2xl border border-slate-200 text-center">
+         <div v-if="sessions.length === 0" class="text-slate-500 font-medium bg-white p-8 rounded-2xl border border-slate-200 text-center">
             No grading sessions completed yet. Go to the Scan tab to run a quiz!
          </div>
          
          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-12">
             <div v-for="session in sessions" :key="session.id" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative group overflow-hidden">
                
-               <button @click="deleteSession(session.id)" class="absolute top-4 right-4 text-slate-300 hover:text-red-600 transition-colors z-10 bg-white rounded-full p-1">
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+               <button @click="deleteSession(session.id)" class="absolute top-4 right-4 text-slate-300 hover:text-red-600 transition-colors z-10 bg-white rounded-full p-1.5 shadow-sm border border-slate-100">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                </button>
 
                <div class="flex justify-between items-start mb-6 pr-8">
                   <div>
                      <h3 class="font-black text-2xl text-slate-800">{{ getQuizName(session.quizId) }}</h3>
-                     <div class="font-medium text-slate-500 mt-1">{{ getClassName(session.classId) }} &bull; {{ new Date(session.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) }}</div>
+                     <div class="font-bold text-slate-500 mt-1">{{ getClassName(session.classId) }} &bull; {{ new Date(session.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) }}</div>
                   </div>
                   <div class="bg-blue-50 text-blue-700 border border-blue-200 font-black px-4 py-2 rounded-xl text-lg shadow-sm">
                      Avg: {{ session.averageScore }}%
@@ -290,15 +362,15 @@
                
                <div class="overflow-x-auto rounded-xl border border-slate-200">
                   <table class="w-full text-sm">
-                     <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                     <thead class="bg-slate-50 text-slate-700 border-b border-slate-200">
                         <tr>
-                           <th class="py-3 px-4 text-left font-bold w-1/2">Student</th>
-                           <th class="py-3 px-4 text-right font-bold w-1/2">Final Score</th>
+                           <th class="py-3 px-4 text-left font-black w-1/2 uppercase tracking-wide text-xs">Student</th>
+                           <th class="py-3 px-4 text-right font-black w-1/2 uppercase tracking-wide text-xs">Final Score</th>
                         </tr>
                      </thead>
                      <tbody class="divide-y divide-slate-100 bg-white">
                         <tr v-if="session.results.length === 0">
-                           <td colspan="2" class="py-4 text-center text-slate-400 italic">No responses recorded.</td>
+                           <td colspan="2" class="py-4 text-center text-slate-400 font-medium">No responses recorded.</td>
                         </tr>
                         <tr v-for="result in session.results" :key="result.studentId" class="hover:bg-slate-50 transition-colors">
                            <td class="py-3 px-4 font-bold text-slate-700">{{ getStudentName(session.classId, result.studentId) }}</td>
@@ -322,7 +394,8 @@
                <div class="absolute -right-12 font-black text-4xl text-black rotate-90 bg-white px-2">B</div>
                <div class="absolute -bottom-12 font-black text-4xl text-black bg-white px-2">C</div>
                <div class="absolute -left-12 font-black text-4xl text-black -rotate-90 bg-white px-2">D</div>
-               <img :src="getQrCodeUrl(student.id)" class="w-full h-full object-contain" />
+               <!-- Use stored QR code -->
+               <img :src="student.qrCode || getQrCodeUrl(student.id)" class="w-full h-full object-contain" />
            </div>
            <p class="mt-12 text-black font-bold text-2xl">Hold card upright. The answer letter at the TOP is your choice.</p>
        </div>
@@ -333,130 +406,143 @@
   <script type="module">
     const { createApp, ref, computed, onMounted, nextTick } = Vue;
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Standardized Firebase config integration
-    let app, auth, db, appId = 'default-app-id';
-    try {
-      const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-      if (configStr) {
-        const config = typeof configStr === 'string' ? JSON.parse(configStr) : configStr;
-        app = initializeApp(config);
-        auth = getAuth(app);
-        db = getFirestore(app);
-        appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-      }
-    } catch(e) {
-      console.warn("Firebase not configured globally. App will run in memory only.");
-    }
+    // 1. Single Unified Firebase Initialization
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "demo", projectId: "demo" };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
     createApp({
       setup() {
-        // --- State Models ---
+        // --- Auth & Notification State ---
+        const currentUser = ref(null);
+        const authLoading = ref(true);
+        const authEmail = ref('');
+        const authPassword = ref('');
+        const isLoginMode = ref(true);
+        const authError = ref('');
+        const isAuthProcessing = ref(false);
+        const notification = ref('');
+        let unsubscribeSnapshot = null;
+
+        const showNotification = (msg) => {
+            notification.value = msg;
+            setTimeout(() => notification.value = '', 4000);
+        };
+
+        // --- App Data State ---
         const activeTab = ref('classes');
         const classes = ref([]);
         const quizzes = ref([]);
         const sessions = ref([]);
-        
-        const authWarning = ref('');
-        const currentUser = ref(null);
 
-        // --- Firebase Auth Fix (Trapping admin-restricted error gracefully) ---
-        const initAuth = async () => {
-          if (!auth) return;
-          try {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-              await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-              try {
-                // The critical fix: we catch this so it doesn't crash the entire app!
-                await signInAnonymously(auth);
-              } catch (anonErr) {
-                console.warn("Anonymous auth restricted:", anonErr);
-                authWarning.value = "Cloud Save is disabled because Anonymous Auth is restricted on this project. You can still use the app normally in offline/memory mode.";
-              }
+        // --- Authentication Logic ---
+        const handleAuthSubmit = async () => {
+            authError.value = '';
+            isAuthProcessing.value = true;
+            try {
+                if (isLoginMode.value) {
+                    await signInWithEmailAndPassword(auth, authEmail.value, authPassword.value);
+                } else {
+                    await createUserWithEmailAndPassword(auth, authEmail.value, authPassword.value);
+                }
+            } catch(e) {
+                let msg = e.message;
+                if (e.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
+                if (e.code === 'auth/email-already-in-use') msg = 'Email is already registered.';
+                if (e.code === 'auth/weak-password') msg = 'Password must be at least 6 characters.';
+                authError.value = msg;
+            } finally {
+                isAuthProcessing.value = false;
             }
-          } catch (err) {
-            console.error("Auth init error:", err);
-            authWarning.value = "Authentication encountered an error. Running locally.";
-          }
         };
 
-        const setupFirestoreListeners = (uid) => {
-          if (!db) return;
-          // Rule 1 strictly followed:
-          const docRef = doc(db, 'artifacts', appId, 'users', uid, 'appData', 'state');
-          onSnapshot(docRef, (snap) => {
-             if (snap.exists()) {
-                const data = snap.data();
-                if (data.classes) classes.value = data.classes;
-                if (data.quizzes) quizzes.value = data.quizzes;
-                if (data.sessions) sessions.value = data.sessions;
-             }
-          }, (err) => {
-             console.error("Firestore sync error:", err);
-          });
+        const logout = async () => {
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot(); // Clean up listener to prevent permission denied errors
+                unsubscribeSnapshot = null;
+            }
+            await signOut(auth);
+            classes.value = [];
+            quizzes.value = [];
+            sessions.value = [];
+            showNotification('Logged out successfully');
+        };
+
+        // --- Firestore Logic ---
+        const setupFirestoreListeners = (user) => {
+            if (!db || !user) return;
+            
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+
+            // Strict path logic following security rules
+            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'appData', 'state');
+            
+            unsubscribeSnapshot = onSnapshot(docRef, (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.classes) classes.value = data.classes;
+                    if (data.quizzes) quizzes.value = data.quizzes;
+                    if (data.sessions) sessions.value = data.sessions;
+                }
+            }, (err) => {
+                console.error("Firestore sync error:", err);
+                if (err.code === 'permission-denied') {
+                    showNotification("Sync error: Session expired or permission denied.");
+                    logout();
+                }
+            });
         };
 
         const syncData = async () => {
-          if (!currentUser.value || !db) return; // Works locally in memory if user is null
-          try {
-            const docRef = doc(db, 'artifacts', appId, 'users', currentUser.value.uid, 'appData', 'state');
-            await setDoc(docRef, {
-               classes: classes.value,
-               quizzes: quizzes.value,
-               sessions: sessions.value,
-               updatedAt: Date.now()
-            });
-          } catch (err) {
-            console.error("Failed to sync:", err);
-          }
+            if (!currentUser.value || !db) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.value.uid, 'appData', 'state');
+                await setDoc(docRef, {
+                    classes: classes.value,
+                    quizzes: quizzes.value,
+                    sessions: sessions.value,
+                    updatedAt: Date.now()
+                });
+            } catch (err) {
+                console.error("Failed to sync:", err);
+                if (err.code === 'permission-denied') {
+                   showNotification("Failed to save: Permission Denied.");
+                }
+            }
         };
 
-        onMounted(() => {
-          if (auth) {
-            initAuth();
-            onAuthStateChanged(auth, (u) => {
-              currentUser.value = u;
-              if (u) setupFirestoreListeners(u.uid);
+        onMounted(async () => {
+            // Priority 1: Canvas Platform Auto-Login Token
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } catch (e) {
+                    console.error("Custom token auto-login failed:", e);
+                }
+            }
+
+            // Priority 2: Listen for unified Auth State
+            onAuthStateChanged(auth, (user) => {
+                currentUser.value = user;
+                authLoading.value = false;
+                
+                if (user) {
+                    setupFirestoreListeners(user);
+                } else {
+                    if (unsubscribeSnapshot) {
+                        unsubscribeSnapshot();
+                        unsubscribeSnapshot = null;
+                    }
+                }
             });
-          } else {
-             // Populate mock data for testing if no Firebase config exists
-             if(classes.value.length === 0) {
-                 classes.value.push({ id: 'c1', name: 'Science 101', students: [{ id: 'stu1', name: 'Albert Einstein' }, { id: 'stu2', name: 'Marie Curie' }] });
-                 quizzes.value.push({ id: 'q1', name: 'Pop Quiz 1', questions: [{ id: 'q1_1', text: 'What is H2O?', options: ['Air', 'Water', 'Fire', 'Earth'], answerIndex: 1 }] });
-             }
-          }
         });
 
-        // --- Classes Logic ---
-        const selectedClassId = ref(null);
-        const currentClass = computed(() => classes.value.find(c => c.id === selectedClassId.value));
-        const newClassName = ref('');
-        const newStudentName = ref('');
-
-        const addClass = () => {
-          if (newClassName.value.trim()) {
-            classes.value.push({ id: `cls_${Date.now()}`, name: newClassName.value.trim(), students: [] });
-            newClassName.value = '';
-            syncData();
-          }
-        };
-        const addStudent = (cId) => {
-          const cls = classes.value.find(c => c.id === cId);
-          if (cls && newStudentName.value.trim()) {
-            cls.students.push({ id: `stu_${Date.now()}_${Math.floor(Math.random()*1000)}`, name: newStudentName.value.trim() });
-            newStudentName.value = '';
-            syncData();
-          }
-        };
-        const deleteStudent = (cls, studentId) => {
-           cls.students = cls.students.filter(s => s.id !== studentId);
-           syncData();
-        };
-
-        // --- QR Logic ---
+        // --- Core QR Generation Logic ---
         const getQrCodeUrl = (data) => {
           if (!data) return '';
           try {
@@ -466,12 +552,66 @@
             qr.make();
             return qr.createDataURL(5, 1); 
           } catch (err) {
-            console.error("QR Generation Error, falling back to API:", err);
+            console.error("QR Generation Error:", err);
             const encoded = encodeURIComponent(typeof data === 'object' ? JSON.stringify(data) : String(data));
             return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encoded}`;
           }
         };
 
+        // --- Classes Logic ---
+        const selectedClassId = ref(null);
+        const currentClass = computed(() => classes.value.find(c => c.id === selectedClassId.value));
+        const newClassName = ref('');
+        const newStudentName = ref('');
+        const showBulkAdd = ref(false);
+        const bulkStudentText = ref('');
+
+        const addClass = () => {
+          if (newClassName.value.trim()) {
+            classes.value.push({ id: `cls_${Date.now()}`, name: newClassName.value.trim(), students: [] });
+            newClassName.value = '';
+            syncData();
+          }
+        };
+
+        const addStudent = (cId) => {
+          const cls = classes.value.find(c => c.id === cId);
+          if (cls && newStudentName.value.trim()) {
+            const studentId = `stu_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            cls.students.push({ 
+              id: studentId, 
+              name: newStudentName.value.trim(),
+              qrCode: getQrCodeUrl(studentId)
+            });
+            newStudentName.value = '';
+            syncData();
+          }
+        };
+
+        const bulkAddStudents = (cId) => {
+          const cls = classes.value.find(c => c.id === cId);
+          if (cls && bulkStudentText.value.trim()) {
+             const names = bulkStudentText.value.split('\n').map(n => n.trim()).filter(n => n);
+             names.forEach(name => {
+                const studentId = `stu_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+                cls.students.push({
+                   id: studentId,
+                   name: name,
+                   qrCode: getQrCodeUrl(studentId)
+                });
+             });
+             bulkStudentText.value = '';
+             showBulkAdd.value = false;
+             syncData();
+          }
+        };
+
+        const deleteStudent = (cls, studentId) => {
+           cls.students = cls.students.filter(s => s.id !== studentId);
+           syncData();
+        };
+
+        // --- Printing Logic ---
         const currentPrintClass = ref(null);
         const printQRs = async (cls) => {
           currentPrintClass.value = cls;
@@ -493,6 +633,11 @@
             newQuizName.value = '';
             syncData();
           }
+        };
+        const deleteQuiz = (qId) => {
+           quizzes.value = quizzes.value.filter(q => q.id !== qId);
+           if (selectedQuizId.value === qId) selectedQuizId.value = null;
+           syncData();
         };
         const addQuestion = (qId) => {
           const qz = quizzes.value.find(q => q.id === qId);
@@ -537,7 +682,7 @@
             }
           } catch (err) {
             console.error("Camera error:", err);
-            alert("Unable to access camera. Please allow camera permissions.");
+            showNotification("Unable to access camera. Please allow permissions.");
             isCapturing.value = false;
           }
         };
@@ -562,14 +707,12 @@
              const studentId = code.data;
              const cls = currentScanClass.value;
              
-             // If QR matches a student in class, calculate answer based on rotation!
              if (cls && cls.students.some(s => s.id === studentId)) {
                  const dx = code.location.topRightCorner.x - code.location.topLeftCorner.x;
                  const dy = code.location.topRightCorner.y - code.location.topLeftCorner.y;
                  let angle = Math.atan2(dy, dx) * 180 / Math.PI;
                  if (angle < 0) angle += 360;
 
-                 // Logic maps to the printed card orientations:
                  let answerLetter = 'A';
                  if (angle >= 45 && angle < 135) answerLetter = 'B';
                  else if (angle >= 135 && angle < 225) answerLetter = 'C';
@@ -582,9 +725,8 @@
                  if (!scanAnswers.value[studentId]) scanAnswers.value[studentId] = {};
                  scanAnswers.value[studentId][qIndex.value] = ansIdx;
                  
-                 // Draw tracking box
                  ctx.lineWidth = 4;
-                 ctx.strokeStyle = "#4ade80"; // Tailwind green-400
+                 ctx.strokeStyle = "#4ade80";
                  ctx.beginPath();
                  ctx.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
                  ctx.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
@@ -643,6 +785,7 @@
                      averageScore: Math.round(totalScoreSum / validResponses)
                   });
                   syncData();
+                  showNotification('Session saved successfully!');
               }
            }
            
@@ -651,7 +794,7 @@
            activeTab.value = 'analytics';
         };
 
-        // --- Helpers for Analytics ---
+        // --- Helpers ---
         const getQuizName = (id) => quizzes.value.find(q => q.id === id)?.name || 'Unknown Quiz';
         const getClassName = (id) => classes.value.find(c => c.id === id)?.name || 'Unknown Class';
         const getStudentName = (cId, sId) => {
@@ -665,10 +808,11 @@
         };
 
         return {
-          activeTab, classes, quizzes, sessions, authWarning,
-          selectedClassId, currentClass, newClassName, newStudentName, addClass, addStudent, deleteStudent,
+          currentUser, authLoading, authEmail, authPassword, isLoginMode, authError, isAuthProcessing, handleAuthSubmit, logout, notification,
+          activeTab, classes, quizzes, sessions,
+          selectedClassId, currentClass, newClassName, newStudentName, showBulkAdd, bulkStudentText, addClass, addStudent, bulkAddStudents, deleteStudent,
           getQrCodeUrl, currentPrintClass, printQRs,
-          selectedQuizId, currentQuiz, newQuizName, addQuiz, addQuestion, deleteQuestion, syncData,
+          selectedQuizId, currentQuiz, newQuizName, addQuiz, deleteQuiz, addQuestion, deleteQuestion, syncData,
           scanClassId, scanQuizId, isCapturing, currentScanClass, currentScanQuiz, startSession, videoElement, canvasElement, qIndex, scanAnswers, prevQuestion, nextQuestion, endSession,
           getQuizName, getClassName, getStudentName, deleteSession
         };
