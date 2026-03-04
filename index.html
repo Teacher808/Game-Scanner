@@ -35,6 +35,14 @@
       0% { transform: scale(0.9); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
     }
+
+    /* Slide Transitions */
+    .slide-fade-enter-active { transition: all 0.4s ease-out; }
+    .slide-fade-leave-active { transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1); }
+    .slide-fade-enter-from, .slide-fade-leave-to { transform: translateY(20px); opacity: 0; }
+    
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex overflow-hidden">
@@ -130,7 +138,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main v-if="currentUser && !authLoading" class="flex-1 overflow-auto p-4 md:p-8 relative pt-16 md:pt-8">
+    <main v-if="currentUser && !authLoading" class="flex-1 overflow-auto p-4 md:p-8 relative pt-16 md:pt-8" :class="{'!p-0 !pt-0': activeTab === 'projector'}">
 
       <!-- CLASSES TAB -->
       <div v-if="activeTab === 'classes'" class="space-y-6 h-full flex flex-col">
@@ -331,54 +339,96 @@
         </div>
       </div>
 
-      <!-- LIVE PROJECTOR TAB -->
-      <div v-if="activeTab === 'projector'" class="h-full flex flex-col bg-[#0f172a] text-white p-6 md:p-10 rounded-3xl overflow-hidden relative shadow-2xl border border-slate-800">
+      <!-- LIVE PROJECTOR TAB (SLIDE DECK) -->
+      <div v-if="activeTab === 'projector'" id="projector-container" class="h-full flex flex-col bg-slate-900 text-slate-100 overflow-hidden relative shadow-inner md:rounded-tl-3xl">
          
-         <div v-if="!liveProjectorData?.isActive" class="flex flex-col items-center justify-center h-full text-slate-500 text-center px-4">
+         <div v-if="!liveProjectorData?.isActive" class="flex flex-col items-center justify-center h-full text-slate-500 text-center px-4 bg-slate-900">
              <svg class="w-24 h-24 mb-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
              <h2 class="text-4xl font-black mb-3 text-slate-300">Projector Mode Ready</h2>
-             <p class="text-xl font-medium max-w-lg">Open the <b>Scan Session</b> tab on your phone or tablet to start scanning. Live results will automatically appear here.</p>
+             <p class="text-xl font-medium max-w-lg">Open the <b>Scan Session</b> tab on your phone or tablet to start scanning. Live slides will automatically appear here.</p>
          </div>
          
-         <div v-else class="flex flex-col h-full w-full">
-            <div class="mb-6 bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col md:flex-row items-start gap-6 shrink-0 max-h-[50vh] overflow-y-auto">
-                <div class="text-4xl md:text-5xl font-black text-blue-500 bg-blue-500/10 px-6 py-4 rounded-xl border border-blue-500/20 shrink-0">Q{{ liveProjectorData.qNumber }}</div>
-                
-                <div class="flex-1 min-w-0 flex flex-col">
-                   <div v-math="liveProjectorData.questionText" class="text-2xl md:text-3xl font-bold text-slate-100 leading-snug break-words"></div>
-                   <img v-if="liveProjectorData.imageUrl" :src="liveProjectorData.imageUrl" class="mt-4 max-h-56 object-contain rounded-xl border border-slate-600 shadow-md self-start bg-slate-900">
-                   
-                   <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3" v-if="liveProjectorData.options && liveProjectorData.options.length">
-                       <div v-for="(opt, idx) in liveProjectorData.options" :key="idx" class="bg-slate-700/50 p-4 rounded-xl flex items-center gap-4 border border-slate-600 shadow-inner">
-                           <span class="font-black text-blue-400 text-xl shrink-0">{{ ['A','B','C','D'][idx] }}.</span>
-                           <span v-math="opt" class="text-slate-200 font-medium text-lg break-words overflow-hidden"></span>
-                       </div>
-                   </div>
-                </div>
+         <div v-else class="flex flex-col h-full w-full bg-slate-900 relative">
+            
+            <!-- Toolbar Overlay (Fades out when inactive or full screen, but kept simple here) -->
+            <div class="absolute top-4 right-4 z-[50] flex gap-3 opacity-50 hover:opacity-100 transition-opacity">
+                <button @click="toggleFullscreen" class="bg-white/10 backdrop-blur border border-white/20 hover:bg-white/20 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    Fullscreen
+                </button>
+            </div>
 
-                <div class="text-right shrink-0">
-                   <div class="text-slate-400 font-bold text-sm uppercase tracking-widest mb-1">Scanned</div>
-                   <div class="text-4xl md:text-5xl font-black text-green-400 drop-shadow-md">{{ liveProjectorData.scannedCount }} <span class="text-slate-500 text-2xl">/ {{ liveProjectorData.totalCount }}</span></div>
+            <!-- View Toggle Switch -->
+            <div class="absolute bottom-6 left-6 z-[50]">
+                <div class="bg-slate-800/80 backdrop-blur-md p-1.5 rounded-2xl flex border border-slate-700 shadow-2xl">
+                    <button @click="projectorViewMode = 'slide'" :class="projectorViewMode === 'slide' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'" class="px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                        Slide
+                    </button>
+                    <button @click="projectorViewMode = 'grid'" :class="projectorViewMode === 'grid' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'" class="px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Results Grid
+                    </button>
                 </div>
             </div>
-            
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 flex-1 overflow-auto content-start pb-10 pr-2">
-                <div v-for="s in liveProjectorData.students" :key="s.id" :class="[
-                   'projector-card pop-in border-2 rounded-2xl p-4 flex flex-col items-center justify-center text-center h-32',
-                   s.status === 'correct' ? 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.15)]' :
-                   s.status === 'wrong' ? 'bg-red-900/40 border-red-500 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.15)]' :
-                   'bg-slate-800/50 border-slate-700 text-slate-500'
-                ]">
-                    <svg v-if="s.status === 'correct'" class="w-8 h-8 mx-auto mb-2 text-green-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <svg v-else-if="s.status === 'wrong'" class="w-8 h-8 mx-auto mb-2 text-red-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <svg v-else class="w-8 h-8 opacity-30 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    
-                    <div class="font-bold text-lg truncate w-full mb-1" :class="s.status !== 'waiting' ? 'text-slate-100' : ''">{{ s.name }}</div>
-                    <div class="text-xs font-black uppercase tracking-wider">
-                       {{ s.status === 'waiting' ? 'Waiting...' : s.status === 'correct' ? `Correct (${s.answerLetter})` : `Wrong (${s.answerLetter})` }}
+
+            <!-- Slide Scan Progress -->
+            <div class="absolute bottom-6 right-6 z-[50]">
+                <div class="bg-slate-800/80 backdrop-blur-md px-6 py-3 rounded-2xl flex items-center gap-4 border border-slate-700 shadow-2xl">
+                    <div class="text-slate-400 font-bold uppercase tracking-widest text-sm">Scanned</div>
+                    <div class="text-3xl font-black text-green-400">{{ liveProjectorData.scannedCount }} <span class="text-slate-500 text-xl">/ {{ liveProjectorData.totalCount }}</span></div>
+                </div>
+            </div>
+
+            <!-- Content Area with Transition -->
+            <transition name="fade" mode="out-in">
+                
+                <!-- VIEW 1: PRESENTATION SLIDE -->
+                <div v-if="projectorViewMode === 'slide'" key="slide" class="flex-1 flex flex-col items-center justify-center p-12 lg:p-24 overflow-y-auto">
+                    <div class="w-full max-w-6xl mx-auto flex flex-col items-center text-center">
+                        <div class="mb-4 inline-block text-xl font-black text-blue-500 bg-blue-500/10 px-6 py-2 rounded-full border border-blue-500/20 tracking-widest uppercase shadow-sm">
+                            Question {{ liveProjectorData.qNumber }}
+                        </div>
+                        
+                        <div v-math="liveProjectorData.questionText" class="text-4xl md:text-5xl lg:text-7xl font-bold text-slate-50 leading-tight md:leading-snug break-words mb-10 w-full drop-shadow-lg"></div>
+                        
+                        <img v-if="liveProjectorData.imageUrl" :src="liveProjectorData.imageUrl" class="max-h-80 md:max-h-96 object-contain rounded-2xl border-4 border-slate-700 shadow-2xl bg-slate-800 mb-12">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-auto" v-if="liveProjectorData.options && liveProjectorData.options.length">
+                            <div v-for="(opt, idx) in liveProjectorData.options" :key="idx" class="bg-slate-800/70 backdrop-blur p-6 lg:p-8 rounded-3xl flex items-center gap-6 border-2 border-slate-700 shadow-xl transition-transform hover:scale-[1.02]">
+                                <div class="w-16 h-16 rounded-2xl bg-slate-700 flex items-center justify-center text-blue-400 font-black text-3xl shrink-0 shadow-inner">
+                                    {{ ['A','B','C','D'][idx] }}
+                                </div>
+                                <div v-math="opt" class="text-slate-200 font-bold text-2xl lg:text-3xl text-left break-words overflow-hidden leading-snug"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+
+                <!-- VIEW 2: RESULTS GRID -->
+                <div v-else key="grid" class="flex-1 flex flex-col p-12 lg:p-24 overflow-y-auto pt-24">
+                    <div class="text-center mb-10">
+                        <h2 class="text-4xl font-black text-slate-100">Live Scans for Q{{ liveProjectorData.qNumber }}</h2>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 w-full max-w-7xl mx-auto pb-24">
+                        <div v-for="s in liveProjectorData.students" :key="s.id" :class="[
+                           'projector-card pop-in border-2 rounded-3xl p-6 flex flex-col items-center justify-center text-center h-40 shadow-xl',
+                           s.status === 'correct' ? 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_30px_rgba(34,197,94,0.15)]' :
+                           s.status === 'wrong' ? 'bg-red-900/40 border-red-500 text-red-400 shadow-[0_0_30px_rgba(239,68,68,0.15)]' :
+                           'bg-slate-800/50 border-slate-700 text-slate-500'
+                        ]">
+                            <svg v-if="s.status === 'correct'" class="w-10 h-10 mx-auto mb-3 text-green-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <svg v-else-if="s.status === 'wrong'" class="w-10 h-10 mx-auto mb-3 text-red-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <svg v-else class="w-10 h-10 opacity-30 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            
+                            <div class="font-bold text-xl truncate w-full mb-1" :class="s.status !== 'waiting' ? 'text-slate-100' : ''">{{ s.name }}</div>
+                            <div class="text-sm font-black uppercase tracking-wider">
+                               {{ s.status === 'waiting' ? 'Waiting...' : s.status === 'correct' ? `Correct (${s.answerLetter})` : `Wrong (${s.answerLetter})` }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
          </div>
       </div>
 
@@ -646,7 +696,6 @@
         };
         const deleteQuestion = (qz, index) => { qz.questions.splice(index, 1); syncData(); };
 
-        // Handle Image Upload & Compression
         const uploadImage = (event, q) => {
            const file = event.target.files[0];
            if (!file) return;
@@ -657,7 +706,7 @@
                    const canvas = document.createElement('canvas');
                    let width = img.width;
                    let height = img.height;
-                   const max_dim = 500; // Resize to ensure it fits in Firestore easily
+                   const max_dim = 500;
                    if (width > max_dim || height > max_dim) {
                        if (width > height) {
                            height = Math.round(height * max_dim / width);
@@ -671,7 +720,6 @@
                    canvas.height = height;
                    const ctx = canvas.getContext('2d');
                    ctx.drawImage(img, 0, 0, width, height);
-                   // Convert to base64 jpeg with 60% quality (keeps sizes ~20-50kb)
                    q.imageUrl = canvas.toDataURL('image/jpeg', 0.6);
                    syncData();
                };
@@ -681,8 +729,9 @@
         };
 
 
-        // --- Live Cloud Projector Sync Logic ---
+        // --- Live Cloud Projector & Slide Mode Logic ---
         const liveProjectorData = ref({ isActive: false });
+        const projectorViewMode = ref('slide'); // 'slide' or 'grid'
         let projectorUnsubscribe = null;
 
         const startProjectorListener = () => {
@@ -690,7 +739,12 @@
             const docRef = doc(db, 'artifacts', appId, 'users', currentUser.value.uid, 'liveProjector', 'state');
             projectorUnsubscribe = onSnapshot(docRef, (snap) => {
                 if (snap.exists()) {
-                    liveProjectorData.value = snap.data();
+                    const data = snap.data();
+                    // Auto-flip to slide mode if the question number changes
+                    if (liveProjectorData.value.qNumber && liveProjectorData.value.qNumber !== data.qNumber) {
+                        projectorViewMode.value = 'slide';
+                    }
+                    liveProjectorData.value = data;
                 } else {
                     liveProjectorData.value = { isActive: false };
                 }
@@ -699,6 +753,15 @@
 
         const stopProjectorListener = () => {
             if (projectorUnsubscribe) { projectorUnsubscribe(); projectorUnsubscribe = null; }
+        };
+
+        const toggleFullscreen = () => {
+            const elem = document.getElementById('projector-container');
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => console.error("Error attempting to enable fullscreen:", err));
+            } else {
+                document.exitFullscreen();
+            }
         };
 
         watch(activeTab, (newTab) => {
@@ -778,7 +841,6 @@
                videoElement.value.play();
                requestAnimationFrame(scanTick);
             }
-            // Instantly turn on Projector mode on other devices
             await updateCloudProjector();
           } catch (err) {
             console.error("Camera error:", err);
@@ -853,7 +915,6 @@
              videoStream = null;
            }
            
-           // Turn off cloud projector
            if (currentUser.value && db) {
                try {
                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.value.uid, 'liveProjector', 'state');
@@ -916,13 +977,12 @@
           getQrCodeUrl, currentPrintClass, printQRs,
           selectedQuizId, currentQuiz, newQuizName, addQuiz, deleteQuiz, addQuestion, deleteQuestion, uploadImage, syncData,
           scanClassId, scanQuizId, isCapturing, currentScanClass, currentScanQuiz, startSession, videoElement, canvasElement, qIndex, scanAnswers, prevQuestion, nextQuestion, endSession,
-          liveProjectorData,
+          liveProjectorData, projectorViewMode, toggleFullscreen,
           getQuizName, getClassName, getStudentName, deleteSession
         };
       }
     });
 
-    // Custom Vue Directive to render Math using KaTeX
     app.directive('math', {
       mounted(el, binding) {
         el.innerHTML = binding.value || '';
