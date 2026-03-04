@@ -409,12 +409,19 @@
     import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // 1. Single Unified Firebase Initialization
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "demo", projectId: "demo" };
+    // 1. Single Unified Firebase Initialization using specific config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAErAdBlHTVvNrktjo_Fi1pMg4ZHovf10E",
+      authDomain: "gamescanner-a27c9.firebaseapp.com",
+      projectId: "gamescanner-a27c9",
+      storageBucket: "gamescanner-a27c9.firebasestorage.app",
+      messagingSenderId: "783561564572",
+      appId: "1:783561564572:web:1bc171000f2419e9292859"
+    };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'gamescanner-app'; // Safe fallback 
 
     createApp({
       setup() {
@@ -479,7 +486,7 @@
             
             if (unsubscribeSnapshot) unsubscribeSnapshot();
 
-            // Strict path logic following security rules
+            // Path to store data securely for this user
             const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'appData', 'state');
             
             unsubscribeSnapshot = onSnapshot(docRef, (snap) => {
@@ -517,16 +524,18 @@
         };
 
         onMounted(async () => {
-            // Priority 1: Canvas Platform Auto-Login Token
+            // Attempt Canvas Auto-Login if variable exists, but catch failures 
+            // since you are bringing a different Firebase project ID
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 try {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } catch (e) {
-                    console.error("Custom token auto-login failed:", e);
+                    // This is expected to fail against your custom project. It'll safely fall back to Login UI.
+                    console.warn("Canvas token auto-login ignored for external Firebase project.");
                 }
             }
 
-            // Priority 2: Listen for unified Auth State
+            // Listen for unified Auth State
             onAuthStateChanged(auth, (user) => {
                 currentUser.value = user;
                 authLoading.value = false;
