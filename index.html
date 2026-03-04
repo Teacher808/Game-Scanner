@@ -129,7 +129,6 @@
 
       <!-- CLASSES TAB -->
       <div v-if="activeTab === 'classes'" class="space-y-6 h-full flex flex-col">
-         <!-- Original Classes Content (Kept Intact) -->
         <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
           <div class="w-full lg:w-1/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]">
             <h2 class="text-2xl font-black mb-6 text-slate-800">Your Classes</h2>
@@ -141,7 +140,10 @@
               <li v-if="classes.length === 0" class="text-slate-500 italic text-center mt-8 font-medium">No classes created yet.</li>
               <li v-for="cls in classes" :key="cls.id" @click="selectedClassId = cls.id" :class="{'bg-blue-50 border-blue-200 text-blue-900 shadow-sm': selectedClassId === cls.id, 'hover:bg-slate-50 border-slate-100 text-slate-700': selectedClassId !== cls.id}" class="cursor-pointer p-4 border rounded-xl transition-all flex justify-between items-center group">
                 <span class="font-bold">{{ cls.name }}</span>
-                <span class="text-xs bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full group-hover:bg-blue-200 font-bold transition-colors">{{ cls.students.length }} Students</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs bg-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-bold group-hover:bg-blue-200 transition-colors">{{ cls.students.length }} Students</span>
+                  <button @click.stop="deleteClass(cls.id)" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50 rounded-full p-1 border border-transparent group-hover:border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                </div>
               </li>
             </ul>
           </div>
@@ -166,7 +168,7 @@
             </div>
             <div class="flex-1 overflow-auto pr-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-8 content-start">
                <div v-for="student in currentClass.students" :key="student.id" class="p-4 border rounded-xl border-slate-200 text-center flex flex-col items-center bg-white relative group shadow-sm hover:shadow-md transition-shadow">
-                  <button @click="deleteStudent(currentClass, student.id)" class="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 rounded-full p-1.5">
+                  <button @click="deleteStudent(currentClass, student.id)" class="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 rounded-full p-1.5 border border-red-100">
                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                   </button>
                   <span class="font-bold mb-3 text-slate-700 w-full truncate">{{ student.name }}</span>
@@ -185,7 +187,6 @@
 
       <!-- QUIZZES TAB -->
       <div v-if="activeTab === 'quizzes'" class="space-y-6 h-full flex flex-col">
-        <!-- Original Quizzes Content (Kept Intact) -->
         <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
           <div class="w-full lg:w-1/3 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[75vh]">
             <h2 class="text-2xl font-black mb-6 text-slate-800">Your Quizzes</h2>
@@ -198,8 +199,8 @@
               <li v-for="quiz in quizzes" :key="quiz.id" @click="selectedQuizId = quiz.id" :class="{'bg-blue-50 border-blue-200 text-blue-900 shadow-sm': selectedQuizId === quiz.id, 'hover:bg-slate-50 border-slate-100 text-slate-700': selectedQuizId !== quiz.id}" class="cursor-pointer p-4 border rounded-xl transition-all flex justify-between items-center group">
                 <span class="font-bold">{{ quiz.name }}</span>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs bg-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-bold">{{ quiz.questions.length }} Qs</span>
-                  <button @click.stop="deleteQuiz(quiz.id)" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                  <span class="text-xs bg-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-bold group-hover:bg-blue-200 transition-colors">{{ quiz.questions.length }} Qs</span>
+                  <button @click.stop="deleteQuiz(quiz.id)" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50 rounded-full p-1 border border-transparent group-hover:border-slate-200 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                 </div>
               </li>
             </ul>
@@ -300,14 +301,12 @@
       <!-- LIVE PROJECTOR TAB -->
       <div v-if="activeTab === 'projector'" class="h-full flex flex-col bg-[#0f172a] text-white p-6 md:p-10 rounded-3xl overflow-hidden relative shadow-2xl border border-slate-800">
          
-         <!-- Placeholder State -->
          <div v-if="!liveProjectorData?.isActive" class="flex flex-col items-center justify-center h-full text-slate-500 text-center px-4">
              <svg class="w-24 h-24 mb-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
              <h2 class="text-4xl font-black mb-3 text-slate-300">Projector Mode Ready</h2>
              <p class="text-xl font-medium max-w-lg">Open the <b>Scan Session</b> tab on your phone or tablet to start scanning. Live results will automatically appear here.</p>
          </div>
          
-         <!-- Active Projector State -->
          <div v-else class="flex flex-col h-full w-full">
             <div class="mb-8 bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-xl flex items-center gap-6 shrink-0">
                 <div class="text-4xl md:text-5xl font-black text-blue-500 bg-blue-500/10 px-6 py-4 rounded-xl border border-blue-500/20">Q{{ liveProjectorData.qNumber }}</div>
@@ -340,7 +339,6 @@
 
       <!-- ANALYTICS TAB -->
       <div v-if="activeTab === 'analytics'" class="space-y-6">
-         <!-- Original Analytics Content (Kept Intact) -->
          <div class="flex justify-between items-end mb-6">
             <h2 class="text-3xl font-black text-slate-800">Past Sessions</h2>
          </div>
@@ -539,6 +537,12 @@
             classes.value.push({ id: `cls_${Date.now()}`, name: newClassName.value.trim(), students: [] });
             newClassName.value = ''; syncData();
           }
+        };
+
+        const deleteClass = (cId) => {
+           classes.value = classes.value.filter(c => c.id !== cId);
+           if (selectedClassId.value === cId) selectedClassId.value = null;
+           syncData();
         };
 
         const addStudent = (cId) => {
@@ -827,7 +831,7 @@
         return {
           currentUser, authLoading, authEmail, authPassword, isLoginMode, authError, isAuthProcessing, handleAuthSubmit, logout, notification,
           activeTab, classes, quizzes, sessions,
-          selectedClassId, currentClass, newClassName, newStudentName, showBulkAdd, bulkStudentText, addClass, addStudent, bulkAddStudents, deleteStudent,
+          selectedClassId, currentClass, newClassName, newStudentName, showBulkAdd, bulkStudentText, addClass, deleteClass, addStudent, bulkAddStudents, deleteStudent,
           getQrCodeUrl, currentPrintClass, printQRs,
           selectedQuizId, currentQuiz, newQuizName, addQuiz, deleteQuiz, addQuestion, deleteQuestion, syncData,
           scanClassId, scanQuizId, isCapturing, currentScanClass, currentScanQuiz, startSession, videoElement, canvasElement, qIndex, scanAnswers, prevQuestion, nextQuestion, endSession,
