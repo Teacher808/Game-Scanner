@@ -11,6 +11,11 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 
+  <!-- KaTeX for Math Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
   <style>
     [v-cloak] { display: none; }
     
@@ -212,16 +217,43 @@
             </div>
             <div class="flex-1 overflow-auto pr-2 space-y-6 pb-8">
                <div v-for="(q, index) in currentQuiz.questions" :key="q.id" class="p-5 border rounded-xl border-slate-200 bg-slate-50 relative group shadow-sm">
-                  <button @click="deleteQuestion(currentQuiz, index)" class="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition-colors bg-white rounded-full p-1.5 border border-slate-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                  <div class="flex gap-4 mb-5 pr-8">
+                  <button @click="deleteQuestion(currentQuiz, index)" class="absolute top-4 right-4 text-slate-400 hover:text-red-600 transition-colors bg-white rounded-full p-1.5 border border-slate-100 z-10"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                  
+                  <div class="flex gap-4 mb-3 pr-8">
                      <span class="font-black text-2xl text-blue-600 mt-1">Q{{ index + 1 }}</span>
-                     <textarea v-model="q.text" @change="syncData" placeholder="Enter question text here..." rows="2" class="flex-1 p-3 border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium text-slate-800 bg-white"></textarea>
+                     <div class="flex-1 flex flex-col gap-2">
+                        <textarea v-model="q.text" @change="syncData" placeholder="Enter question text here... Use $$ for equations (e.g., $$x^2$$)" rows="2" class="w-full p-3 border rounded-xl border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y font-medium text-slate-800 bg-white"></textarea>
+                        
+                        <!-- Real-time Math Preview -->
+                        <div v-if="q.text" class="px-4 py-3 bg-white border border-blue-100 rounded-lg text-slate-700 shadow-sm min-h-[2.5rem] flex items-center">
+                           <span class="text-blue-500 text-[10px] uppercase font-black mr-3 tracking-widest shrink-0">Preview</span>
+                           <span v-math="q.text" class="flex-1 overflow-x-auto"></span>
+                        </div>
+                     </div>
                   </div>
+
+                  <!-- Image Upload Section -->
+                  <div class="pl-12 mb-5">
+                      <div v-if="q.imageUrl" class="relative inline-block border border-slate-200 rounded-xl overflow-hidden shadow-sm group bg-white">
+                         <img :src="q.imageUrl" class="max-h-40 object-contain p-2">
+                         <button @click="q.imageUrl = null; syncData()" class="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                         </button>
+                      </div>
+                      <div v-else>
+                         <input type="file" accept="image/*" @change="e => uploadImage(e, q)" class="hidden" :id="'img-upload-' + q.id">
+                         <label :for="'img-upload-' + q.id" class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-sm transition-colors shadow-sm">
+                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                             Add Image
+                         </label>
+                      </div>
+                  </div>
+
                   <div class="pl-12 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                     <label v-for="(opt, oIndex) in q.options" :key="oIndex" :class="q.answerIndex === oIndex ? 'bg-green-100 border-green-500 shadow-sm' : 'bg-white border-slate-200'" class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors">
+                     <label v-for="(opt, oIndex) in q.options" :key="oIndex" :class="q.answerIndex === oIndex ? 'bg-green-100 border-green-500 shadow-sm' : 'bg-white border-slate-200'" class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors relative">
                         <input type="radio" :name="`q_${q.id}`" :value="oIndex" v-model="q.answerIndex" @change="syncData" class="w-5 h-5 text-green-600 focus:ring-green-500" />
                         <span class="font-black text-slate-500 w-5">{{ ['A','B','C','D'][oIndex] }}.</span>
-                        <input v-model="q.options[oIndex]" @change="syncData" placeholder="Option text..." class="flex-1 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none text-slate-800 font-medium" />
+                        <input v-model="q.options[oIndex]" @change="syncData" placeholder="Option text..." class="flex-1 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none text-slate-800 font-medium truncate" />
                      </label>
                   </div>
                </div>
@@ -260,8 +292,9 @@
            <div class="flex-1 flex flex-col bg-slate-900 rounded-2xl overflow-hidden relative shadow-lg">
               <div class="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-10 text-white pointer-events-none">
                  <div class="max-w-lg pointer-events-auto">
-                    <div class="font-black text-2xl mb-1 text-blue-400">Question {{ qIndex + 1 }} <span class="text-slate-400 text-lg font-bold">of {{ currentScanQuiz?.questions.length }}</span></div>
-                    <div class="font-bold text-lg text-slate-200 drop-shadow-md leading-tight">{{ currentScanQuiz?.questions[qIndex]?.text }}</div>
+                    <div class="font-black text-2xl mb-1 text-blue-400 drop-shadow">Question {{ qIndex + 1 }} <span class="text-slate-400 text-lg font-bold">of {{ currentScanQuiz?.questions.length }}</span></div>
+                    <div v-math="currentScanQuiz?.questions[qIndex]?.text" class="font-bold text-lg text-slate-100 drop-shadow-md leading-tight max-h-24 overflow-y-auto"></div>
+                    <img v-if="currentScanQuiz?.questions[qIndex]?.imageUrl" :src="currentScanQuiz?.questions[qIndex]?.imageUrl" class="mt-2 max-h-24 object-contain rounded-lg border border-white/20 shadow-lg bg-black/50">
                  </div>
                  <div class="flex gap-2 shrink-0 mt-2 pointer-events-auto">
                     <button @click="prevQuestion" :disabled="qIndex === 0" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50">&larr; Prev</button>
@@ -308,9 +341,21 @@
          </div>
          
          <div v-else class="flex flex-col h-full w-full">
-            <div class="mb-8 bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-xl flex items-center gap-6 shrink-0">
-                <div class="text-4xl md:text-5xl font-black text-blue-500 bg-blue-500/10 px-6 py-4 rounded-xl border border-blue-500/20">Q{{ liveProjectorData.qNumber }}</div>
-                <div class="text-2xl md:text-3xl font-bold text-slate-100 flex-1 leading-snug">{{ liveProjectorData.questionText }}</div>
+            <div class="mb-6 bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col md:flex-row items-start gap-6 shrink-0 max-h-[50vh] overflow-y-auto">
+                <div class="text-4xl md:text-5xl font-black text-blue-500 bg-blue-500/10 px-6 py-4 rounded-xl border border-blue-500/20 shrink-0">Q{{ liveProjectorData.qNumber }}</div>
+                
+                <div class="flex-1 min-w-0 flex flex-col">
+                   <div v-math="liveProjectorData.questionText" class="text-2xl md:text-3xl font-bold text-slate-100 leading-snug break-words"></div>
+                   <img v-if="liveProjectorData.imageUrl" :src="liveProjectorData.imageUrl" class="mt-4 max-h-56 object-contain rounded-xl border border-slate-600 shadow-md self-start bg-slate-900">
+                   
+                   <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3" v-if="liveProjectorData.options && liveProjectorData.options.length">
+                       <div v-for="(opt, idx) in liveProjectorData.options" :key="idx" class="bg-slate-700/50 p-4 rounded-xl flex items-center gap-4 border border-slate-600 shadow-inner">
+                           <span class="font-black text-blue-400 text-xl shrink-0">{{ ['A','B','C','D'][idx] }}.</span>
+                           <span v-math="opt" class="text-slate-200 font-medium text-lg break-words overflow-hidden"></span>
+                       </div>
+                   </div>
+                </div>
+
                 <div class="text-right shrink-0">
                    <div class="text-slate-400 font-bold text-sm uppercase tracking-widest mb-1">Scanned</div>
                    <div class="text-4xl md:text-5xl font-black text-green-400 drop-shadow-md">{{ liveProjectorData.scannedCount }} <span class="text-slate-500 text-2xl">/ {{ liveProjectorData.totalCount }}</span></div>
@@ -319,17 +364,17 @@
             
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 flex-1 overflow-auto content-start pb-10 pr-2">
                 <div v-for="s in liveProjectorData.students" :key="s.id" :class="[
-                   'projector-card pop-in border-2 rounded-2xl p-5 flex flex-col items-center justify-center text-center',
+                   'projector-card pop-in border-2 rounded-2xl p-4 flex flex-col items-center justify-center text-center h-32',
                    s.status === 'correct' ? 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.15)]' :
                    s.status === 'wrong' ? 'bg-red-900/40 border-red-500 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.15)]' :
                    'bg-slate-800/50 border-slate-700 text-slate-500'
                 ]">
-                    <svg v-if="s.status === 'correct'" class="w-10 h-10 mx-auto mb-3 mt-1 text-green-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <svg v-else-if="s.status === 'wrong'" class="w-10 h-10 mx-auto mb-3 mt-1 text-red-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <svg v-else class="w-10 h-10 opacity-30 mx-auto mb-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg v-if="s.status === 'correct'" class="w-8 h-8 mx-auto mb-2 text-green-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg v-else-if="s.status === 'wrong'" class="w-8 h-8 mx-auto mb-2 text-red-400 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg v-else class="w-8 h-8 opacity-30 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     
-                    <div class="font-bold text-xl truncate w-full mb-1" :class="s.status !== 'waiting' ? 'text-slate-100' : ''">{{ s.name }}</div>
-                    <div class="text-sm font-black uppercase tracking-wider">
+                    <div class="font-bold text-lg truncate w-full mb-1" :class="s.status !== 'waiting' ? 'text-slate-100' : ''">{{ s.name }}</div>
+                    <div class="text-xs font-black uppercase tracking-wider">
                        {{ s.status === 'waiting' ? 'Waiting...' : s.status === 'correct' ? `Correct (${s.answerLetter})` : `Wrong (${s.answerLetter})` }}
                     </div>
                 </div>
@@ -417,12 +462,12 @@
       messagingSenderId: "783561564572",
       appId: "1:783561564572:web:1bc171000f2419e9292859"
     };
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const appInfo = initializeApp(firebaseConfig);
+    const auth = getAuth(appInfo);
+    const db = getFirestore(appInfo);
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'gamescanner-app'; 
 
-    createApp({
+    const app = createApp({
       setup() {
         const currentUser = ref(null);
         const authLoading = ref(true);
@@ -595,11 +640,45 @@
         const addQuestion = (qId) => {
           const qz = quizzes.value.find(q => q.id === qId);
           if (qz) {
-            qz.questions.push({ id: `qst_${Date.now()}`, text: '', options: ['Option A', 'Option B', 'Option C', 'Option D'], answerIndex: 0 });
+            qz.questions.push({ id: `qst_${Date.now()}`, text: '', imageUrl: null, options: ['Option A', 'Option B', 'Option C', 'Option D'], answerIndex: 0 });
             syncData();
           }
         };
         const deleteQuestion = (qz, index) => { qz.questions.splice(index, 1); syncData(); };
+
+        // Handle Image Upload & Compression
+        const uploadImage = (event, q) => {
+           const file = event.target.files[0];
+           if (!file) return;
+           const reader = new FileReader();
+           reader.onload = (e) => {
+               const img = new Image();
+               img.onload = () => {
+                   const canvas = document.createElement('canvas');
+                   let width = img.width;
+                   let height = img.height;
+                   const max_dim = 500; // Resize to ensure it fits in Firestore easily
+                   if (width > max_dim || height > max_dim) {
+                       if (width > height) {
+                           height = Math.round(height * max_dim / width);
+                           width = max_dim;
+                       } else {
+                           width = Math.round(width * max_dim / height);
+                           height = max_dim;
+                       }
+                   }
+                   canvas.width = width;
+                   canvas.height = height;
+                   const ctx = canvas.getContext('2d');
+                   ctx.drawImage(img, 0, 0, width, height);
+                   // Convert to base64 jpeg with 60% quality (keeps sizes ~20-50kb)
+                   q.imageUrl = canvas.toDataURL('image/jpeg', 0.6);
+                   syncData();
+               };
+               img.src = e.target.result;
+           };
+           reader.readAsDataURL(file);
+        };
 
 
         // --- Live Cloud Projector Sync Logic ---
@@ -673,6 +752,8 @@
                     isActive: true,
                     qNumber: qIndex.value + 1,
                     questionText: currentQ ? currentQ.text : 'Loading...',
+                    imageUrl: currentQ?.imageUrl || null,
+                    options: currentQ?.options || [],
                     scannedCount,
                     totalCount: cls.students.length,
                     students: studentsData,
@@ -833,13 +914,43 @@
           activeTab, classes, quizzes, sessions,
           selectedClassId, currentClass, newClassName, newStudentName, showBulkAdd, bulkStudentText, addClass, deleteClass, addStudent, bulkAddStudents, deleteStudent,
           getQrCodeUrl, currentPrintClass, printQRs,
-          selectedQuizId, currentQuiz, newQuizName, addQuiz, deleteQuiz, addQuestion, deleteQuestion, syncData,
+          selectedQuizId, currentQuiz, newQuizName, addQuiz, deleteQuiz, addQuestion, deleteQuestion, uploadImage, syncData,
           scanClassId, scanQuizId, isCapturing, currentScanClass, currentScanQuiz, startSession, videoElement, canvasElement, qIndex, scanAnswers, prevQuestion, nextQuestion, endSession,
           liveProjectorData,
           getQuizName, getClassName, getStudentName, deleteSession
         };
       }
-    }).mount('#app');
+    });
+
+    // Custom Vue Directive to render Math using KaTeX
+    app.directive('math', {
+      mounted(el, binding) {
+        el.innerHTML = binding.value || '';
+        if (window.renderMathInElement) {
+            window.renderMathInElement(el, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ],
+                throwOnError: false
+            });
+        }
+      },
+      updated(el, binding) {
+        el.innerHTML = binding.value || '';
+        if (window.renderMathInElement) {
+            window.renderMathInElement(el, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ],
+                throwOnError: false
+            });
+        }
+      }
+    });
+
+    app.mount('#app');
   </script>
 </body>
 </html>
