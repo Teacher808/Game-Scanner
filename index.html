@@ -14,8 +14,12 @@
   <style>
     [v-cloak] { display: none; }
     
-    /* Clean Print CSS for QR Cards */
+    /* Clean Print CSS for 2 QR Cards per Page */
     @media print {
+      @page {
+        margin: 0; /* Remove default margins to allow full edge-to-edge printing */
+        size: portrait;
+      }
       body * {
         visibility: hidden;
       }
@@ -29,6 +33,7 @@
         width: 100%;
         margin: 0;
         padding: 0;
+        background: white;
       }
       .break-after-page {
         page-break-after: always;
@@ -157,7 +162,7 @@
               <h2 class="text-3xl font-black text-slate-800">{{ currentClass.name }} Roster</h2>
               <button @click="printQRs(currentClass)" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-700 transition flex items-center justify-center gap-2 shadow-sm">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                Print QR Cards
+                Print 2/Page
               </button>
             </div>
             
@@ -291,12 +296,12 @@
            <div class="flex-1 flex flex-col bg-slate-900 rounded-2xl overflow-hidden relative shadow-lg">
               
               <!-- Top Overlay HUD -->
-              <div class="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-10 text-white">
-                 <div class="max-w-lg">
+              <div class="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start z-10 text-white pointer-events-none">
+                 <div class="max-w-lg pointer-events-auto">
                     <div class="font-black text-2xl mb-1 text-blue-400">Question {{ qIndex + 1 }} <span class="text-slate-400 text-lg font-bold">of {{ currentScanQuiz?.questions.length }}</span></div>
                     <div class="font-bold text-lg text-slate-200 drop-shadow-md leading-tight">{{ currentScanQuiz?.questions[qIndex]?.text }}</div>
                  </div>
-                 <div class="flex gap-2 shrink-0 mt-2">
+                 <div class="flex gap-2 shrink-0 mt-2 pointer-events-auto">
                     <button @click="prevQuestion" :disabled="qIndex === 0" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50 transition-colors">&larr; Prev</button>
                     <button @click="nextQuestion" :disabled="qIndex === (currentScanQuiz?.questions.length || 1) - 1" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur rounded-xl font-bold disabled:opacity-50 transition-colors">Next &rarr;</button>
                  </div>
@@ -307,8 +312,14 @@
               
               <!-- Bottom Overlay HUD -->
               <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end z-10">
-                 <div class="bg-black/70 px-5 py-3 rounded-xl text-white font-black backdrop-blur-sm border border-white/10 text-lg">
-                    Scanned: <span class="text-green-400 text-2xl">{{ Object.keys(scanAnswers).filter(id => scanAnswers[id][qIndex] !== undefined).length }}</span> / {{ currentScanClass?.students.length }}
+                 <div class="flex gap-3">
+                     <div class="bg-black/70 px-5 py-3 rounded-xl text-white font-black backdrop-blur-sm border border-white/10 text-lg flex items-center shadow-lg">
+                        Scanned: <span class="text-green-400 text-2xl ml-2 mr-1">{{ Object.keys(scanAnswers).filter(id => scanAnswers[id][qIndex] !== undefined).length }}</span> / {{ currentScanClass?.students.length }}
+                     </div>
+                     <button @click="openProjectorWindow" class="bg-indigo-600/90 text-white px-4 py-3 rounded-xl font-bold hover:bg-indigo-500 backdrop-blur-sm shadow-lg border border-indigo-400/50 transition-colors flex items-center gap-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        Projector Mode
+                     </button>
                  </div>
                  <button @click="endSession" class="bg-red-600 text-white px-8 py-4 rounded-xl font-black hover:bg-red-700 shadow-lg border border-red-800 transition-colors text-xl">Finish Session</button>
               </div>
@@ -385,31 +396,31 @@
 
     </main>
 
-    <!-- PRINT OVERLAY (Only visible during window.print()) -->
+    <!-- PRINT OVERLAY (Only visible during window.print()) - 2 QR Codes per page -->
     <div id="print-area" v-if="currentPrintClass" class="hidden print:block absolute inset-0 bg-white z-[9999] overflow-visible">
-       <div v-for="student in currentPrintClass.students" :key="student.id" class="break-after-page flex flex-col items-center justify-center text-center h-[48vh] border-b-2 border-dashed border-gray-300 pb-8 pt-8 px-4 box-border">
-           <h1 class="text-5xl font-black mb-8">{{ student.name }}</h1>
-           <div class="relative w-80 h-80 mx-auto border-[12px] border-black p-4 rounded-xl bg-white flex items-center justify-center">
+       <div v-for="(student, index) in currentPrintClass.students" :key="student.id" 
+            :class="{'break-after-page': index % 2 === 1, 'border-b-2': index % 2 === 0}"
+            class="flex flex-col items-center justify-center text-center h-[50vh] border-dashed border-gray-400 p-8 box-border" style="page-break-inside: avoid;">
+           <h1 class="text-5xl font-black mb-6">{{ student.name }}</h1>
+           <div class="relative w-72 h-72 mx-auto border-[12px] border-black p-4 rounded-xl bg-white flex items-center justify-center">
                <div class="absolute -top-12 font-black text-4xl text-black bg-white px-2">A</div>
                <div class="absolute -right-12 font-black text-4xl text-black rotate-90 bg-white px-2">B</div>
                <div class="absolute -bottom-12 font-black text-4xl text-black bg-white px-2">C</div>
                <div class="absolute -left-12 font-black text-4xl text-black -rotate-90 bg-white px-2">D</div>
-               <!-- Use stored QR code -->
                <img :src="student.qrCode || getQrCodeUrl(student.id)" class="w-full h-full object-contain" />
            </div>
-           <p class="mt-12 text-black font-bold text-2xl">Hold card upright. The answer letter at the TOP is your choice.</p>
+           <p class="mt-10 text-black font-bold text-2xl">Hold card upright. The answer letter at the TOP is your choice.</p>
        </div>
     </div>
 
   </div>
 
   <script type="module">
-    const { createApp, ref, computed, onMounted, nextTick } = Vue;
+    const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // 1. Single Unified Firebase Initialization using specific config
     const firebaseConfig = {
       apiKey: "AIzaSyAErAdBlHTVvNrktjo_Fi1pMg4ZHovf10E",
       authDomain: "gamescanner-a27c9.firebaseapp.com",
@@ -421,11 +432,10 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'gamescanner-app'; // Safe fallback 
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'gamescanner-app'; 
 
     createApp({
       setup() {
-        // --- Auth & Notification State ---
         const currentUser = ref(null);
         const authLoading = ref(true);
         const authEmail = ref('');
@@ -441,13 +451,12 @@
             setTimeout(() => notification.value = '', 4000);
         };
 
-        // --- App Data State ---
         const activeTab = ref('classes');
         const classes = ref([]);
         const quizzes = ref([]);
         const sessions = ref([]);
 
-        // --- Authentication Logic ---
+        // --- Authentication & Database Sync ---
         const handleAuthSubmit = async () => {
             authError.value = '';
             isAuthProcessing.value = true;
@@ -470,25 +479,21 @@
 
         const logout = async () => {
             if (unsubscribeSnapshot) {
-                unsubscribeSnapshot(); // Clean up listener to prevent permission denied errors
+                unsubscribeSnapshot(); 
                 unsubscribeSnapshot = null;
             }
             await signOut(auth);
             classes.value = [];
             quizzes.value = [];
             sessions.value = [];
+            if(projectorWindow.value && !projectorWindow.value.closed) projectorWindow.value.close();
             showNotification('Logged out successfully');
         };
 
-        // --- Firestore Logic ---
         const setupFirestoreListeners = (user) => {
             if (!db || !user) return;
-            
             if (unsubscribeSnapshot) unsubscribeSnapshot();
-
-            // Path to store data securely for this user
             const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'appData', 'state');
-            
             unsubscribeSnapshot = onSnapshot(docRef, (snap) => {
                 if (snap.exists()) {
                     const data = snap.data();
@@ -517,29 +522,16 @@
                 });
             } catch (err) {
                 console.error("Failed to sync:", err);
-                if (err.code === 'permission-denied') {
-                   showNotification("Failed to save: Permission Denied.");
-                }
             }
         };
 
         onMounted(async () => {
-            // Attempt Canvas Auto-Login if variable exists, but catch failures 
-            // since you are bringing a different Firebase project ID
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } catch (e) {
-                    // This is expected to fail against your custom project. It'll safely fall back to Login UI.
-                    console.warn("Canvas token auto-login ignored for external Firebase project.");
-                }
+                try { await signInWithCustomToken(auth, __initial_auth_token); } catch (e) { }
             }
-
-            // Listen for unified Auth State
             onAuthStateChanged(auth, (user) => {
                 currentUser.value = user;
                 authLoading.value = false;
-                
                 if (user) {
                     setupFirestoreListeners(user);
                 } else {
@@ -551,7 +543,7 @@
             });
         });
 
-        // --- Core QR Generation Logic ---
+        // --- Core Application Logic ---
         const getQrCodeUrl = (data) => {
           if (!data) return '';
           try {
@@ -561,13 +553,11 @@
             qr.make();
             return qr.createDataURL(5, 1); 
           } catch (err) {
-            console.error("QR Generation Error:", err);
             const encoded = encodeURIComponent(typeof data === 'object' ? JSON.stringify(data) : String(data));
             return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encoded}`;
           }
         };
 
-        // --- Classes Logic ---
         const selectedClassId = ref(null);
         const currentClass = computed(() => classes.value.find(c => c.id === selectedClassId.value));
         const newClassName = ref('');
@@ -587,11 +577,7 @@
           const cls = classes.value.find(c => c.id === cId);
           if (cls && newStudentName.value.trim()) {
             const studentId = `stu_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-            cls.students.push({ 
-              id: studentId, 
-              name: newStudentName.value.trim(),
-              qrCode: getQrCodeUrl(studentId)
-            });
+            cls.students.push({ id: studentId, name: newStudentName.value.trim(), qrCode: getQrCodeUrl(studentId) });
             newStudentName.value = '';
             syncData();
           }
@@ -603,11 +589,7 @@
              const names = bulkStudentText.value.split('\n').map(n => n.trim()).filter(n => n);
              names.forEach(name => {
                 const studentId = `stu_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-                cls.students.push({
-                   id: studentId,
-                   name: name,
-                   qrCode: getQrCodeUrl(studentId)
-                });
+                cls.students.push({ id: studentId, name: name, qrCode: getQrCodeUrl(studentId) });
              });
              bulkStudentText.value = '';
              showBulkAdd.value = false;
@@ -620,18 +602,13 @@
            syncData();
         };
 
-        // --- Printing Logic ---
         const currentPrintClass = ref(null);
         const printQRs = async (cls) => {
           currentPrintClass.value = cls;
           await nextTick();
-          setTimeout(() => {
-            window.print();
-            currentPrintClass.value = null;
-          }, 500);
+          setTimeout(() => { window.print(); currentPrintClass.value = null; }, 500);
         };
 
-        // --- Quizzes Logic ---
         const selectedQuizId = ref(null);
         const currentQuiz = computed(() => quizzes.value.find(q => q.id === selectedQuizId.value));
         const newQuizName = ref('');
@@ -660,7 +637,7 @@
            syncData();
         };
 
-        // --- Scanner/Session Logic ---
+        // --- Live Scanner & Projector Logic ---
         const scanClassId = ref(null);
         const scanQuizId = ref(null);
         const currentScanClass = computed(() => classes.value.find(c => c.id === scanClassId.value));
@@ -674,6 +651,141 @@
         const videoElement = ref(null);
         const canvasElement = ref(null);
         let videoStream = null;
+
+        const projectorWindow = ref(null);
+
+        // Send state to projector via window.postMessage
+        const updateProjector = () => {
+          if (!projectorWindow.value || projectorWindow.value.closed) return;
+          const quiz = currentScanQuiz.value;
+          const cls = currentScanClass.value;
+          if (!quiz || !cls) return;
+
+          const currentQ = quiz.questions[qIndex.value];
+          const questionText = currentQ ? currentQ.text : 'Loading...';
+          let scannedCount = 0;
+
+          const studentsData = cls.students.map(student => {
+             const studentAnswers = scanAnswers.value[student.id] || {};
+             const ansIdx = studentAnswers[qIndex.value];
+             
+             let status = 'waiting';
+             let answerLetter = '';
+             
+             if (ansIdx !== undefined) {
+                scannedCount++;
+                answerLetter = ['A', 'B', 'C', 'D'][ansIdx];
+                if (currentQ && currentQ.answerIndex === ansIdx) {
+                   status = 'correct';
+                } else {
+                   status = 'wrong';
+                }
+             }
+
+             return { id: student.id, name: student.name, status, answerLetter };
+          });
+
+          projectorWindow.value.postMessage({
+             type: 'UPDATE',
+             qNumber: qIndex.value + 1,
+             questionText,
+             scannedCount,
+             totalCount: cls.students.length,
+             students: studentsData
+          }, '*');
+        };
+
+        const openProjectorWindow = () => {
+          const win = window.open('', 'ScanMasterProjector', 'width=1024,height=768');
+          if (!win) {
+             showNotification("Popup blocked! Please allow popups to use Projector Mode.");
+             return;
+          }
+          projectorWindow.value = win;
+          
+          const projectorHtml = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <title>Live Projection - ScanMaster</title>
+              <script src="https://cdn.tailwindcss.com"><\/script>
+              <style>
+                body { background-color: #0f172a; color: white; font-family: ui-sans-serif, system-ui, sans-serif; }
+                .card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+                .pop { animation: popIn 0.3s ease-out forwards; }
+                @keyframes popIn {
+                  0% { transform: scale(0.9); opacity: 0; }
+                  100% { transform: scale(1); opacity: 1; }
+                }
+              </style>
+            </head>
+            <body class="h-screen flex flex-col p-8 overflow-hidden">
+              <div class="mb-8 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex items-center gap-6">
+                <div id="q-number" class="text-4xl font-black text-blue-500 bg-blue-500/10 px-6 py-4 rounded-xl">...</div>
+                <div id="q-text" class="text-3xl font-bold text-slate-100 flex-1 leading-tight">Loading question...</div>
+                <div class="text-right">
+                   <div class="text-slate-400 font-bold text-sm uppercase tracking-widest mb-1">Scanned</div>
+                   <div id="stats" class="text-4xl font-black text-green-400">0 / 0</div>
+                </div>
+              </div>
+              
+              <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 flex-1 overflow-auto content-start pb-10">
+                <!-- Cards injected dynamically -->
+              </div>
+
+              <script>
+                let lastData = '';
+                window.addEventListener('message', (event) => {
+                  if (event.data.type === 'UPDATE') {
+                    const data = event.data;
+                    document.getElementById('q-number').innerText = 'Q' + data.qNumber;
+                    document.getElementById('q-text').innerText = data.questionText;
+                    document.getElementById('stats').innerText = data.scannedCount + ' / ' + data.totalCount;
+                    
+                    const grid = document.getElementById('grid');
+                    const newDataStr = JSON.stringify(data.students);
+                    if (lastData === newDataStr) return; // Prevent unnecessary DOM reflows
+                    lastData = newDataStr;
+
+                    grid.innerHTML = '';
+                    data.students.forEach(s => {
+                      const div = document.createElement('div');
+                      let colors = 'bg-slate-800 border-slate-700 text-slate-500';
+                      let icon = '<svg class="w-8 h-8 opacity-50 mx-auto mb-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                      let statusText = 'Waiting...';
+
+                      if (s.status === 'correct') {
+                        colors = 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.2)]';
+                        icon = '<svg class="w-8 h-8 mx-auto mb-3 mt-1 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                        statusText = 'Correct (' + s.answerLetter + ')';
+                      } else if (s.status === 'wrong') {
+                        colors = 'bg-red-900/40 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]';
+                        icon = '<svg class="w-8 h-8 mx-auto mb-3 mt-1 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                        statusText = 'Wrong (' + s.answerLetter + ')';
+                      }
+
+                      div.className = 'card pop ' + colors + ' border-2 rounded-2xl p-5 flex flex-col items-center justify-center text-center';
+                      div.innerHTML = icon + '<div class="font-bold text-xl truncate w-full text-slate-100 mb-1">' + s.name + '</div><div class="text-sm font-black uppercase tracking-wider">' + statusText + '</div>';
+                      grid.appendChild(div);
+                    });
+                  }
+                });
+              <\/script>
+            </body>
+            </html>
+          `;
+          win.document.open();
+          win.document.write(projectorHtml);
+          win.document.close();
+          
+          setTimeout(updateProjector, 500); 
+        };
+
+        // Watch for changes to index or answers to dynamically update projector
+        watch([qIndex, scanAnswers], () => {
+            updateProjector();
+        }, { deep: true });
 
         const startSession = async () => {
           activeSessionId.value = Date.now().toString();
@@ -731,7 +843,10 @@
                  const letterToIndex = { A: 0, B: 1, C: 2, D: 3 };
                  const ansIdx = letterToIndex[answerLetter];
 
-                 if (!scanAnswers.value[studentId]) scanAnswers.value[studentId] = {};
+                 // Safely update reactive object
+                 if (!scanAnswers.value[studentId]) {
+                    scanAnswers.value[studentId] = {};
+                 }
                  scanAnswers.value[studentId][qIndex.value] = ansIdx;
                  
                  ctx.lineWidth = 4;
@@ -760,6 +875,10 @@
            if (videoStream) {
              videoStream.getTracks().forEach(t => t.stop());
              videoStream = null;
+           }
+           
+           if(projectorWindow.value && !projectorWindow.value.closed) {
+             projectorWindow.value.close();
            }
            
            const quiz = currentScanQuiz.value;
@@ -803,7 +922,6 @@
            activeTab.value = 'analytics';
         };
 
-        // --- Helpers ---
         const getQuizName = (id) => quizzes.value.find(q => q.id === id)?.name || 'Unknown Quiz';
         const getClassName = (id) => classes.value.find(c => c.id === id)?.name || 'Unknown Class';
         const getStudentName = (cId, sId) => {
@@ -823,6 +941,7 @@
           getQrCodeUrl, currentPrintClass, printQRs,
           selectedQuizId, currentQuiz, newQuizName, addQuiz, deleteQuiz, addQuestion, deleteQuestion, syncData,
           scanClassId, scanQuizId, isCapturing, currentScanClass, currentScanQuiz, startSession, videoElement, canvasElement, qIndex, scanAnswers, prevQuestion, nextQuestion, endSession,
+          openProjectorWindow,
           getQuizName, getClassName, getStudentName, deleteSession
         };
       }
