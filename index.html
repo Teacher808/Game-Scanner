@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a8a">
+  <link rel="apple-touch-icon" href="https://api.iconify.design/lucide:camera.svg?color=%231e3a8a">
+  <title>ScanMaster Pro</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  
+  <!-- jsQR for scanning -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+  <style>
+    [v-cloak] { display: none; }
+    
+    /* Dedicated Print CSS for generating QR Cards */
+    @media print {
+      body * { visibility: hidden; }
+      #print-area, #print-area * { visibility: visible; }
+      #print-area { 
+        position: absolute; left: 0; top: 0; width: 100%; 
+        display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 20px;
+      }
+      .no-print { display: none !important; }
+      .print-card { 
+        page-break-inside: avoid; border: 3px solid #1e293b; padding: 40px; 
+        text-align: center; position: relative; aspect-ratio: 1/1;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border-radius: 12px;
+      }
+      .edge-label { position: absolute; font-weight: 900; font-size: 32px; color: #000; }
+      .edge-a { top: 15px; left: 50%; transform: translateX(-50%); }
+      .edge-b { right: 15px; top: 50%; transform: translateY(-50%); }
+      .edge-c { bottom: 15px; left: 50%; transform: translateX(-50%); }
+      .edge-d { left: 15px; top: 50%; transform: translateY(-50%); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+
+  <div id="app" v-cloak class="flex h-screen overflow-hidden">
+    
+    <!-- Custom Modal System -->
+    <div v-if="modal.isOpen" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 transform transition-all">
+        <h3 class="text-xl font-bold text-slate-800 mb-3">{{ modal.title }}</h3>
+        <p class="text-slate-600 mb-8">{{ modal.message }}</p>
+        <div class="flex justify-end gap-3">
+          <button v-if="modal.isConfirm" @click="modal.onCancel" class="px-5 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+          <button @click="modal.onConfirm" class="px-5 py-2.5 rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-colors">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auth Loading Screen overlay -->
+    <div v-if="authLoading" class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-50">
+      <div class="flex flex-col items-center">
+        <svg class="animate-spin h-12 w-12 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <h2 class="text-xl font-bold text-slate-700 animate-pulse">Checking Local Session...</h2>
+      </div>
+    </div>
+
+    <!-- Login/Registration Screen -->
+    <div v-else-if="!user" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900 bg-gradient-to-br from-slate-900 to-blue-900 p-4">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 md:p-10 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
+        
+        <div class="flex justify-center mb-6">
+          <div class="p-3 bg-blue-50 rounded-2xl relative">
+            <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span v-if="!isOnline" class="absolute -bottom-1 -right-1 w-4 h-4 bg-orange-500 border-2 border-white rounded-full"></span>
+          </div>
+        </div>
+        
+        <h2 class="text-2xl font-black text-center text-slate-800 mb-2">{{ isLoginMode ? 'Welcome Back' : 'Create Account' }}</h2>
+        <p class="text-center text-slate-500 mb-8">{{ isLoginMode ? 'Sign in to access your quizzes and rosters.' : 'Sign up to start scanning securely.' }}</p>
+
+        <!-- Offline Notice -->
+        <div v-if="!isOnline" class="mb-6 p-4 bg-orange-50 rounded-xl border border-orange-200 flex items-start gap-3 text-orange-800">
+           <svg class="w-5 h-5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+           <p class="text-sm font-medium">You are offline. An internet connection is required to sign in or create a new account.</p>
+        </div>
+        
+        <form @submit.prevent="performAuth" class="space-y-5">
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
+            <input v-model="authEmail" type="email" required placeholder="you@example.com" :disabled="!isOnline" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-50">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-2">Password</label>
+            <input v-model="authPassword" type="password" required placeholder="••••••••" :disabled="!isOnline" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-50">
+          </div>
+          
+          <div v-if="authError" class="p-3 bg-red-50 text-red-600 text-sm font-medium rounded-xl border border-red-100">
+            {{ authError }}
+          </div>
+
+          <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 transition-all flex justify-center items-center gap-2" :disabled="isAuthProcessing || !isOnline">
+            <svg v-if="isAuthProcessing" class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            {{ isLoginMode ? 'Sign In' : 'Create Account' }}
+          </button>
+        </form>
+
+        <div class="mt-8 text-center">
+          <button @click="toggleAuthMode" type="button" :disabled="!isOnline" class="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors disabled:opacity-50">
+            {{ isLoginMode ? "Don't have an account? Sign up" : "Already have an account? Sign in" }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN APPLICATION (Only shown when logged in and DB is ready) -->
+    <template v-else>
+      <!-- Loading Screen overlay while Firebase data initializes from local cache -->
+      <div v-if="!isDbReady" class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-50">
+        <div class="flex flex-col items-center">
+          <svg class="animate-spin h-12 w-12 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <h2 class="text-xl font-bold text-slate-700 animate-pulse">Loading Local Data...</h2>
+        </div>
+      </div>
+
+      <!-- Sidebar Navigation -->
+      <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col transition-all no-print flex-shrink-0" :class="{'hidden md:flex': isMenuOpen === false}">
+        <div class="p-6 bg-slate-950 flex flex-col gap-2">
+          <div class="flex justify-between items-center mb-2">
+            <div class="flex items-center gap-3">
+              <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              <h1 class="text-xl font-bold text-white tracking-wide">ScanMaster</h1>
+            </div>
+          </div>
+          <div class="text-xs font-medium text-slate-500 truncate" title="Logged in user">{{ user.email }}</div>
+          
+          <!-- Offline Badge -->
+          <div v-if="!isOnline" class="mt-2 flex items-center gap-1.5 bg-orange-500/20 text-orange-400 text-xs font-bold px-2 py-1 rounded-md border border-orange-500/30">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"></path></svg>
+            Offline Mode
+          </div>
+          <div v-else class="mt-2 flex items-center gap-1.5 text-green-500 text-xs font-bold px-2 py-1">
+            <span class="w-2 h-2 rounded-full bg-green-500"></span> Online & Synced
+          </div>
+        </div>
+        
+        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          <button @click="currentView = 'dashboard'" :class="navClass('dashboard')">Dashboard</button>
+          <button @click="currentView = 'classes'" :class="navClass('classes')">Classes</button>
+          <button @click="currentView = 'students'" :class="navClass('students')">Students & Cards</button>
+          <button @click="currentView = 'quizzes'" :class="navClass('quizzes')">Quizzes</button>
+          <button @click="currentView = 'keys'" :class="navClass('keys')">Answer Keys</button>
+          <button @click="currentView = 'scan'" :class="navClass('scan')">Scan Session</button>
+          <button @click="currentView = 'analytics'" :class="navClass('analytics')">Analytics</button>
+        </nav>
+
+        <div class="p-4 bg-slate-950">
+           <button @click="performLogout" :disabled="!isOnline" class="w-full py-3 px-4 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" :class="isOnline ? 'text-slate-400 hover:bg-red-500/10 hover:text-red-400' : 'text-slate-600'" :title="!isOnline ? 'Must be online to sign out safely' : ''">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+             Sign Out
+           </button>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="flex-1 flex flex-col overflow-hidden relative">
+        
+        <!-- Mobile Header -->
+        <header class="md:hidden bg-white shadow-sm p-4 flex justify-between items-center no-print">
+          <h1 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            ScanMaster Pro
+            <span v-if="!isOnline" class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+          </h1>
+          <button @click="isMenuOpen = !isMenuOpen" class="p-2 text-slate-600 bg-slate-100 rounded-lg">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6 md:p-10 no-print pb-24">
+          
+          <!-- DASHBOARD VIEW -->
+          <div v-if="currentView === 'dashboard'" class="max-w-5xl mx-auto space-y-8">
+            <div>
+              <h2 class="text-3xl font-bold text-slate-900 mb-2">Welcome back</h2>
+              <p class="text-slate-500">Manage your classes, build answer keys, and scan student responses instantly.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer" @click="currentView = 'classes'">
+                <div><p class="text-sm font-medium text-slate-500">Classes</p><p class="text-3xl font-bold text-slate-800">{{ classes.length }}</p></div>
+                <div class="p-4 bg-blue-50 text-blue-600 rounded-xl"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg></div>
+              </div>
+              <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer" @click="currentView = 'students'">
+                <div><p class="text-sm font-medium text-slate-500">Students</p><p class="text-3xl font-bold text-slate-800">{{ students.length }}</p></div>
+                <div class="p-4 bg-green-50 text-green-600 rounded-xl"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg></div>
+              </div>
+              <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer" @click="currentView = 'quizzes'">
+                <div><p class="text-sm font-medium text-slate-500">Quizzes</p><p class="text-3xl font-bold text-slate-800">{{ quizzes.length }}</p></div>
+                <div class="p-4 bg-purple-50 text-purple-600 rounded-xl"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
+              </div>
+              <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer" @click="currentView = 'analytics'">
+                <div><p class="text-sm font-medium text-slate-500">Sessions</p><p class="text-3xl font-bold text-slate-800">{{ Object.keys(sessions).length }}</p></div>
+                <div class="p-4 bg-orange-50 text-orange-600 rounded-xl"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CLASSES VIEW -->
+          <div v-else-if="currentView === 'classes'" class="max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold text-slate-900 mb-6">Manage Classes</h2>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8 flex gap-4">
+              <input v-model="newClassName" @keyup.enter="addClass" type="text" placeholder="Enter class name (e.g. Physics 101)" class="flex-1 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-3 transition-colors">
+              <button @click="addClass" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-sm whitespace-nowrap">Add Class</button>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div v-if="classes.length === 0" class="p-8 text-center text-slate-500">No classes found. Create your first one above.</div>
+              <ul v-else class="divide-y divide-slate-100">
+                <li v-for="cls in classes" :key="cls.id" class="p-5 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                  <div>
+                    <h3 class="font-bold text-slate-800 text-lg">{{ cls.name }}</h3>
+                    <p class="text-sm text-slate-500">{{ getStudentCount(cls.id) }} Students</p>
+                  </div>
+                  <button @click="deleteClass(cls.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Class">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- STUDENTS VIEW -->
+          <div v-else-if="currentView === 'students'" class="max-w-5xl mx-auto">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h2 class="text-2xl font-bold text-slate-900">Students & QR Cards</h2>
+              <select v-model="selectedClass" class="bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-3 shadow-sm min-w-[200px]">
+                <option value="" disabled>Select a Class</option>
+                <option v-for="cls in classes" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
+              </select>
+            </div>
+
+            <div v-if="selectedClass" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                  <h3 class="font-bold text-slate-800 mb-4">Add Single Student</h3>
+                  <div class="flex flex-col gap-3">
+                    <input v-model="newStudentName" @keyup.enter="addStudent" type="text" placeholder="Student Name" class="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-3">
+                    <button @click="addStudent" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 px-4 rounded-xl transition-colors w-full">Add</button>
+                  </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                  <h3 class="font-bold text-slate-800 mb-4">Bulk Import</h3>
+                  <p class="text-xs text-slate-500 mb-3">Paste a list of names, one per line.</p>
+                  <textarea v-model="bulkStudentText" rows="5" class="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-3 mb-3"></textarea>
+                  <button @click="bulkAddStudents" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 px-4 rounded-xl transition-colors w-full">Import List</button>
+                </div>
+              </div>
+
+              <div class="lg:col-span-2">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full min-h-[400px]">
+                  <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                    <h3 class="font-bold text-slate-800">Class Roster ({{ filteredStudents.length }})</h3>
+                    <button v-if="filteredStudents.length > 0" @click="printCards" class="text-blue-600 font-semibold bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                      Print QR Cards
+                    </button>
+                  </div>
+                  <div class="flex-1 overflow-y-auto p-2">
+                    <div v-if="filteredStudents.length === 0" class="p-8 text-center text-slate-500">No students in this class yet.</div>
+                    <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div v-for="std in filteredStudents" :key="std.id" class="flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-100 transition-all group">
+                        <span class="font-medium text-slate-700 truncate pr-4">{{ std.name }}</span>
+                        <button @click="deleteStudent(std.id)" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center p-12 bg-white rounded-2xl shadow-sm border border-slate-100">
+              <svg class="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              <p class="text-slate-500 font-medium">Please select a class above to view or add students.</p>
+            </div>
+          </div>
+
+          <!-- QUIZZES VIEW -->
+          <div v-else-if="currentView === 'quizzes'" class="max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold text-slate-900 mb-6">Manage Quizzes</h2>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8 flex gap-4">
+              <input v-model="newQuizName" @keyup.enter="addQuiz" type="text" placeholder="Enter quiz name (e.g. Midterm Exam)" class="flex-1 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-3 transition-colors">
+              <button @click="addQuiz" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-sm whitespace-nowrap">Create Quiz</button>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div v-if="quizzes.length === 0" class="p-8 text-center text-slate-500">No quizzes found. Create your first one above.</div>
+              <ul v-else class="divide-y divide-slate-100">
+                <li v-for="q in quizzes" :key="q.id" class="p-5 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                  <div>
+                    <h3 class="font-bold text-slate-800 text-lg">{{ q.name }}</h3>
+                    <p class="text-sm text-slate-500">{{ (quizKeys[q.id] || []).length }} Questions</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button @click="selectedQuiz = q.id; currentView = 'keys'" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors">Edit Key</button>
+                    <button @click="deleteQuiz(q.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Quiz">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- ANSWER KEYS VIEW -->
+          <div v-else-if="currentView === 'keys'" class="max-w-4xl mx-auto">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h2 class="text-2xl font-bold text-slate-900">Answer Key Builder</h2>
+              <div class="flex gap-3">
+                 <select v-model="selectedQuiz" class="bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-3 shadow-sm min-w-[200px]">
+                   <option value="" disabled>Select a Quiz</option>
+                   <option v-for="q in quizzes" :key="q.id" :value="q.id">{{ q.name }}</option>
+                 </select>
+                 <button v-if="selectedQuiz" @click="saveQuizKey" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-sm flex items-center gap-2" :class="{'ring-4 ring-orange-200 bg-orange-600 hover:bg-orange-700': hasUnsavedKey}">
+                   <span>{{ hasUnsavedKey ? 'Save Changes' : 'Saved' }}</span>
+                 </button>
+              </div>
+            </div>
+
+            <div v-if="selectedQuiz" class="space-y-6">
+              <div v-for="(q, qIndex) in activeKeyData" :key="qIndex" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative group">
+                <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button @click="removeQuestion(qIndex)" class="text-red-400 hover:text-red-600 p-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                </div>
+                
+                <div class="mb-5 pr-10">
+                  <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Question {{ qIndex + 1 }}</label>
+                  <textarea v-model="q.q" @input="markKeyUnsaved" rows="2" placeholder="Enter question text here..." class="bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-3"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                   <div v-for="(choiceText, cIndex) in q.c" :key="cIndex" class="flex items-center gap-3 p-3 rounded-xl border transition-colors" :class="q.a === cIndex ? 'border-green-400 bg-green-50' : 'border-slate-200 bg-white'">
+                      <input type="radio" :name="`q_${qIndex}`" :value="cIndex" v-model="q.a" @change="markKeyUnsaved" class="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500 cursor-pointer">
+                      <span class="font-bold text-slate-400 w-6">{{ String.fromCharCode(65 + cIndex) }}.</span>
+                      <input v-model="q.c[cIndex]" @input="markKeyUnsaved" type="text" placeholder="Choice text" class="bg-transparent border-none text-slate-900 text-sm focus:ring-0 block w-full p-0 flex-1">
+                   </div>
+                </div>
+              </div>
+
+              <button @click="addQuestion" class="w-full py-5 rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 font-bold hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400 transition-all flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Add Next Question
+              </button>
+            </div>
+            <div v-else class="text-center p-12 bg-white rounded-2xl shadow-sm border border-slate-100">
+               <p class="text-slate-500 font-medium">Please select a quiz above to create its answer key.</p>
+            </div>
+          </div>
+
+          <!-- PRE-SCAN / SCAN VIEW -->
+          <div v-else-if="currentView === 'scan'" class="max-w-5xl mx-auto h-full flex flex-col">
+            <!-- Pre-flight settings -->
+            <div v-if="!activeSessionId" class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center max-w-lg mx-auto w-full mt-10">
+              <h2 class="text-3xl font-bold text-slate-900 mb-6">Start Scanning</h2>
+              <div class="space-y-4 mb-8 text-left">
+                <div>
+                  <label class="block text-sm font-bold text-slate-600 mb-2">Target Class</label>
+                  <select v-model="activeClass" class="bg-slate-50 border border-slate-200 text-slate-900 text-base rounded-xl focus:ring-blue-500 focus:border-blue-500 p-4 shadow-sm w-full block">
+                    <option value="" disabled>Select a Class</option>
+                    <option v-for="cls in classes" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-bold text-slate-600 mb-2">Quiz to Administer</label>
+                  <select v-model="activeQuiz" class="bg-slate-50 border border-slate-200 text-slate-900 text-base rounded-xl focus:ring-blue-500 focus:border-blue-500 p-4 shadow-sm w-full block">
+                    <option value="" disabled>Select a Quiz</option>
+                    <option v-for="q in quizzes" :key="q.id" :value="q.id">{{ q.name }}</option>
+                  </select>
+                </div>
+              </div>
+              <button @click="startSession" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-md text-lg">Launch Scanner</button>
+            </div>
+
+            <!-- Active Scan View -->
+            <div v-else class="flex-1 flex flex-col lg:flex-row gap-6 h-full pb-10">
+              <!-- Left: Projection / Scanner -->
+              <div class="flex-1 flex flex-col bg-black rounded-3xl overflow-hidden shadow-xl relative min-h-[400px]">
+                
+                <!-- Top HUD -->
+                <div class="absolute top-0 left-0 right-0 p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent z-10 text-white">
+                   <div class="flex gap-3">
+                     <button @click="endSession" class="bg-red-500/20 text-red-100 hover:bg-red-500 hover:text-white px-4 py-2 rounded-lg font-bold text-sm backdrop-blur-md transition-colors border border-red-500/30">End Session</button>
+                     <button @click="toggleProjector" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg font-bold text-sm backdrop-blur-md transition-colors border border-white/30 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                        Projector Mode
+                     </button>
+                   </div>
+                   <div class="font-bold bg-black/40 px-4 py-2 rounded-lg backdrop-blur-md">Q {{ activeScanQIndex + 1 }} / {{ activeQuizData.length }}</div>
+                </div>
+
+                <!-- Video Canvas (Hidden but active) -->
+                <video ref="videoRef" class="absolute inset-0 w-full h-full object-cover" playsinline></video>
+                <canvas ref="canvasRef" class="hidden"></canvas>
+
+                <!-- Target Overlay -->
+                <div class="absolute inset-0 border-[4px] border-white/20 m-10 rounded-3xl pointer-events-none flex items-center justify-center">
+                   <div class="w-16 h-16 border-4 border-transparent border-t-white/80 border-l-white/80 absolute top-0 left-0 rounded-tl-xl -m-[4px]"></div>
+                   <div class="w-16 h-16 border-4 border-transparent border-t-white/80 border-r-white/80 absolute top-0 right-0 rounded-tr-xl -m-[4px]"></div>
+                   <div class="w-16 h-16 border-4 border-transparent border-b-white/80 border-l-white/80 absolute bottom-0 left-0 rounded-bl-xl -m-[4px]"></div>
+                   <div class="w-16 h-16 border-4 border-transparent border-b-white/80 border-r-white/80 absolute bottom-0 right-0 rounded-br-xl -m-[4px]"></div>
+                </div>
+
+                <!-- Bottom Controls: Question Switcher -->
+                <div class="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent z-10 flex justify-between items-end">
+                  <div class="max-w-xl text-white">
+                     <p class="text-sm font-bold text-blue-400 mb-1 uppercase tracking-wider">Current Question</p>
+                     <p class="text-xl font-medium leading-tight line-clamp-2">{{ currentProjectedQuestion.q }}</p>
+                  </div>
+                  <div class="flex gap-2">
+                     <button :disabled="activeScanQIndex === 0" @click="changeQuestion(-1)" class="p-3 bg-white/20 hover:bg-white/30 disabled:opacity-30 rounded-xl backdrop-blur-md text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                     </button>
+                     <button :disabled="activeScanQIndex >= activeQuizData.length - 1" @click="changeQuestion(1)" class="p-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 rounded-xl backdrop-blur-md text-white transition-colors shadow-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                     </button>
+                  </div>
+                </div>
+
+                <!-- Scan Success Popup -->
+                <div v-if="latestScanName" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-8 py-4 rounded-2xl shadow-2xl font-bold text-xl flex items-center gap-3 animate-bounce z-20 whitespace-nowrap">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                  {{ latestScanName }} Saved!
+                </div>
+
+              </div>
+
+              <!-- Right: Roster Panel -->
+              <div class="w-full lg:w-80 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col h-[400px] lg:h-auto shrink-0">
+                 <div class="p-5 border-b border-slate-100 bg-slate-50 rounded-t-3xl">
+                   <h3 class="font-bold text-slate-800">Scanned for Q{{ activeScanQIndex + 1 }}</h3>
+                   <p class="text-sm text-slate-500">{{ activeQScannedCount }} of {{ activeClassStudents.length }} students</p>
+                   
+                   <!-- Progress Bar -->
+                   <div class="w-full bg-slate-200 rounded-full h-2 mt-3">
+                      <div class="bg-green-500 h-2 rounded-full transition-all duration-500" :style="`width: ${(activeQScannedCount / activeClassStudents.length) * 100 || 0}%`"></div>
+                   </div>
+                 </div>
+                 <div class="flex-1 overflow-y-auto p-2">
+                    <div v-for="std in activeClassStudents" :key="std.id" class="flex justify-between items-center p-3 rounded-xl border-b border-slate-50 last:border-0" :class="hasScannedCurrentQ(std.id) ? 'bg-green-50' : ''">
+                      <span class="font-medium truncate pr-2" :class="hasScannedCurrentQ(std.id) ? 'text-green-800' : 'text-slate-600'">{{ std.name }}</span>
+                      <svg v-if="hasScannedCurrentQ(std.id)" class="w-5 h-5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                      <span v-else class="w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></span>
+                    </div>
+                 </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ANALYTICS VIEW -->
+          <div v-else-if="currentView === 'analytics'" class="max-w-5xl mx-auto">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h2 class="text-2xl font-bold text-slate-900">Analytics & Results</h2>
+              <select v-model="analyticsSessionId" class="bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 p-3 shadow-sm min-w-[250px]">
+                <option value="" disabled>Select a Past Session</option>
+                <option v-for="(sess, sid) in sessions" :key="sid" :value="sid">
+                  {{ getClassName(sess.classId) }} - {{ getQuizName(sess.quizId) }} ({{ new Date(sess.timestamp).toLocaleDateString() }})
+                </option>
+              </select>
+            </div>
+
+            <div v-if="analyticsSessionId && analyticsSessionData" class="space-y-6">
+               <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 text-center">
+                    <p class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Average Score</p>
+                    <p class="text-4xl font-black text-blue-600">{{ analyticsStats.avg }}%</p>
+                  </div>
+                  <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 text-center">
+                    <p class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Total Items</p>
+                    <p class="text-4xl font-black text-slate-800">{{ analyticsStats.totalItems }}</p>
+                  </div>
+                  <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 text-center">
+                    <p class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Participants</p>
+                    <p class="text-4xl font-black text-slate-800">{{ analyticsStats.participants }}</p>
+                  </div>
+               </div>
+
+               <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                  <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-slate-800">Student Grades</h3>
+                    <button @click="deleteSession(analyticsSessionId)" class="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-1">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                      Delete Data
+                    </button>
+                  </div>
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                      <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200">
+                          <th class="p-4 font-bold text-sm text-slate-600">Student</th>
+                          <th class="p-4 font-bold text-sm text-slate-600 text-right">Score</th>
+                          <th class="p-4 font-bold text-sm text-slate-600 text-right">Percentage</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-100">
+                        <tr v-for="res in analyticsResults" :key="res.studentId" class="hover:bg-slate-50">
+                          <td class="p-4 font-medium text-slate-800">{{ res.name }}</td>
+                          <td class="p-4 text-right text-slate-600 font-medium">{{ res.score }} / {{ analyticsStats.totalItems }}</td>
+                          <td class="p-4 text-right">
+                             <span class="inline-block px-3 py-1 rounded-full text-sm font-bold" :class="res.percent >= 70 ? 'bg-green-100 text-green-700' : res.percent >= 50 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'">
+                               {{ res.percent }}%
+                             </span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+               </div>
+            </div>
+            <div v-else class="text-center p-12 bg-white rounded-2xl shadow-sm border border-slate-100 mt-6">
+               <p class="text-slate-500 font-medium">Select a session above to view detailed performance metrics.</p>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      <!-- FULL SCREEN PROJECTOR MODE OVERLAY -->
+      <div v-if="isFullscreenProjector && activeSessionId" class="fixed inset-0 bg-slate-900 z-[300] flex flex-col items-center justify-center p-10 text-center no-print text-white">
+         <button @click="isFullscreenProjector = false" class="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-md transition-colors">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+         </button>
+         <div class="max-w-5xl w-full flex flex-col gap-10">
+           <div class="text-blue-400 font-bold tracking-[0.2em] uppercase text-2xl">Question {{ activeScanQIndex + 1 }}</div>
+           <h1 class="text-5xl md:text-7xl font-black leading-tight">{{ currentProjectedQuestion.q }}</h1>
+           
+           <div class="grid grid-cols-2 gap-6 mt-10">
+              <div v-for="(choice, cIdx) in currentProjectedQuestion.c" :key="cIdx" class="bg-white/10 border-2 border-white/20 p-8 rounded-3xl text-left flex items-start gap-6">
+                 <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center font-bold text-2xl shrink-0">{{ String.fromCharCode(65 + cIdx) }}</div>
+                 <div class="text-2xl md:text-4xl font-medium pt-1">{{ choice }}</div>
+              </div>
+           </div>
+         </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- PRINT ONLY AREA -->
+  <div id="print-area" class="hidden">
+    <div v-for="std in printStudents" :key="std.id" class="print-card">
+       <div class="edge-label edge-a">A</div>
+       <div class="edge-label edge-b">B</div>
+       <div class="edge-label edge-c">C</div>
+       <div class="edge-label edge-d">D</div>
+       <img :src="`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${std.id}&margin=0`" alt="QR Code" style="width: 60%; aspect-ratio: 1/1;" />
+       <div style="margin-top: 30px; font-size: 24px; font-weight: bold; text-align: center;">{{ std.name }}</div>
+       <div style="margin-top: 5px; font-size: 16px; color: #555;">{{ getClassName(std.classId) }}</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+
+    // Firebase Setup using explicitly provided configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAErAdBlHTVvNrktjo_Fi1pMg4ZHovf10E",
+      authDomain: "gamescanner-a27c9.firebaseapp.com",
+      projectId: "gamescanner-a27c9",
+      storageBucket: "gamescanner-a27c9.firebasestorage.app",
+      messagingSenderId: "783561564572",
+      appId: "1:783561564572:web:1bc171000f2419e9292859"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    
+    // OFFLINE PERSISTENCE: Initialize Firestore with Local Cache enabled
+    const db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
+    
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'scanmaster-app';
+
+    createApp({
+      setup() {
+        // --- Network State ---
+        const isOnline = ref(navigator.onLine);
+        
+        onMounted(() => {
+           window.addEventListener('online', () => isOnline.value = true);
+           window.addEventListener('offline', () => isOnline.value = false);
+        });
+
+        const user = ref(null);
+        const authLoading = ref(true);
+        const isDbReady = ref(false);
+        const currentView = ref('dashboard');
+        const isMenuOpen = ref(false);
+
+        // Auth UI State
+        const authEmail = ref('');
+        const authPassword = ref('');
+        const isLoginMode = ref(true);
+        const authError = ref('');
+        const isAuthProcessing = ref(false);
+
+        // State Refs
+        const classes = ref([]);
+        const students = ref([]);
+        const quizzes = ref([]);
+        const quizKeys = ref({});
+        const sessions = ref({});
+
+        // UI Helpers
+        const navClass = (view) => {
+           return currentView.value === view 
+             ? 'w-full text-left px-4 py-3 rounded-xl bg-blue-600 text-white font-bold transition-all'
+             : 'w-full text-left px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white font-medium transition-all';
+        };
+
+        // --- Custom Modal System ---
+        const modal = ref({ isOpen: false, title: '', message: '', isConfirm: false, onConfirm: null, onCancel: null });
+        const showModal = (title, message, isConfirm = false) => {
+          return new Promise((resolve) => {
+            modal.value = {
+              isOpen: true, title, message, isConfirm,
+              onConfirm: () => { modal.value.isOpen = false; resolve(true); },
+              onCancel: () => { modal.value.isOpen = false; resolve(false); }
+            };
+          });
+        };
+
+        // --- Firebase Init & Listeners ---
+        let unsubscribes = [];
+        
+        onMounted(() => {
+          const initAuth = async () => {
+          try {
+            const { signInWithCustomToken, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+            
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+              try {
+                await signInWithCustomToken(auth, __initial_auth_token);
+              } catch (e) {
+                console.warn("Custom token mismatch, falling back to anonymous auth...", e);
+                await signInAnonymously(auth);
+              }
+            } else {
+              await signInAnonymously(auth);
+            }
+          } catch (e) {
+            console.error("Authentication completely failed:", e.message);
+            if (e.code === 'auth/admin-restricted-operation') {
+              console.error("ACTION REQUIRED: To fix this, go to your Firebase Console -> Authentication -> Sign-in method, and enable the 'Anonymous' provider.");
+            }
+            // Catching the error here prevents the app from crashing and allows it to run locally
+          }
+        };
+        
+        initAuth();
+
+          // onAuthStateChanged fires immediately with local session even if offline
+          onAuthStateChanged(auth, (u) => {
+            user.value = u;
+            authLoading.value = false;
+            
+            if (u) {
+               setupFirestore(u.uid);
+            } else {
+               unsubscribes.forEach(unsub => unsub());
+               unsubscribes = [];
+               isDbReady.value = false;
+               classes.value = [];
+               students.value = [];
+               quizzes.value = [];
+               quizKeys.value = {};
+               sessions.value = {};
+            }
+          });
+        });
+
+        // --- Auth Actions ---
+        const toggleAuthMode = () => {
+           isLoginMode.value = !isLoginMode.value;
+           authError.value = '';
+        };
+
+        const performAuth = async () => {
+           if (!isOnline.value) return; // Cannot login if offline
+           authError.value = '';
+           if (!authEmail.value || !authPassword.value) {
+               authError.value = "Please enter both email and password.";
+               return;
+           }
+           isAuthProcessing.value = true;
+           try {
+               if (isLoginMode.value) {
+                   await signInWithEmailAndPassword(auth, authEmail.value, authPassword.value);
+               } else {
+                   await createUserWithEmailAndPassword(auth, authEmail.value, authPassword.value);
+               }
+           } catch (err) {
+               authError.value = err.message.replace("Firebase: ", "");
+           } finally {
+               isAuthProcessing.value = false;
+           }
+        };
+
+        const performLogout = async () => {
+           if (!isOnline.value) {
+               showModal("Offline", "You cannot sign out while offline to prevent data loss.");
+               return;
+           }
+           if (await showModal("Sign Out", "Are you sure you want to sign out?", true)) {
+               stopCamera(); 
+               await signOut(auth);
+               currentView.value = 'dashboard';
+               authEmail.value = '';
+               authPassword.value = '';
+           }
+        };
+
+        const setupFirestore = (uid) => {
+           unsubscribes.forEach(unsub => unsub());
+           unsubscribes = [];
+           const basePath = `artifacts/${appId}/users/${uid}`;
+           const errHandler = (err) => console.error("Firestore Error", err);
+
+           // With persistence enabled, these listeners resolve instantly from local IndexedDB cache
+           unsubscribes.push(onSnapshot(collection(db, basePath, `classes`), (snap) => {
+              classes.value = snap.docs.map(d => d.data());
+           }, errHandler));
+
+           unsubscribes.push(onSnapshot(collection(db, basePath, `students`), (snap) => {
+              students.value = snap.docs.map(d => d.data());
+           }, errHandler));
+
+           unsubscribes.push(onSnapshot(collection(db, basePath, `quizzes`), (snap) => {
+              quizzes.value = snap.docs.map(d => d.data());
+           }, errHandler));
+
+           unsubscribes.push(onSnapshot(collection(db, basePath, `quizKeys`), (snap) => {
+              const keys = {};
+              snap.docs.forEach(d => { keys[d.id] = d.data().questions; });
+              quizKeys.value = keys;
+           }, errHandler));
+
+           unsubscribes.push(onSnapshot(collection(db, basePath, `sessions`), (snap) => {
+              const sess = {};
+              snap.docs.forEach(d => { sess[d.id] = d.data(); });
+              sessions.value = sess;
+           }, errHandler));
+
+           setTimeout(() => { isDbReady.value = true; }, 300); // Give snapshots a moment to fire locally
+        };
+
+        // --- Class Logic ---
+        const newClassName = ref('');
+        // Note: Removing `await` from setDoc calls ensures instant UI updates when offline.
+        // Firestore automatically queues the writes locally and syncs them when the device connects to the internet.
+        const addClass = () => {
+           if (!newClassName.value.trim() || !user.value) return;
+           const newClass = { id: Date.now().toString(), name: newClassName.value.trim(), created: new Date().toISOString() };
+           newClassName.value = '';
+           setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'classes', newClass.id), newClass).catch(console.error);
+        };
+        const deleteClass = async (id) => {
+           if (!(await showModal("Delete Class", "Delete this class and all its students?", true))) return;
+           if (!user.value) return;
+           const studentsToRemove = students.value.filter(s => s.classId === id);
+           deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'classes', id)).catch(console.error);
+           for (const s of studentsToRemove) {
+             deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'students', s.id)).catch(console.error);
+           }
+           if (selectedClass.value === id) selectedClass.value = '';
+        };
+
+        // --- Student Logic ---
+        const selectedClass = ref('');
+        const newStudentName = ref('');
+        const bulkStudentText = ref('');
+        
+        const filteredStudents = computed(() => students.value.filter(s => s.classId === selectedClass.value));
+        const getStudentCount = (classId) => students.value.filter(s => s.classId === classId).length;
+        const getClassName = (classId) => { const c = classes.value.find(x => x.id === classId); return c ? c.name : 'Unknown Class'; };
+
+        const addStudent = () => {
+           if (!newStudentName.value.trim() || !selectedClass.value || !user.value) return;
+           const newStd = { id: Date.now().toString(), classId: selectedClass.value, name: newStudentName.value.trim() };
+           newStudentName.value = '';
+           setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'students', newStd.id), newStd).catch(console.error);
+        };
+        const bulkAddStudents = () => {
+           if (!bulkStudentText.value.trim() || !selectedClass.value || !user.value) return;
+           const names = bulkStudentText.value.split('\n').map(n => n.trim()).filter(n => n);
+           let time = Date.now();
+           for (const name of names) {
+             const id = (time++).toString();
+             setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'students', id), { id, classId: selectedClass.value, name }).catch(console.error);
+           }
+           bulkStudentText.value = '';
+        };
+        const deleteStudent = async (id) => {
+           if (!(await showModal("Delete Student", "Remove this student from the roster?", true))) return;
+           if (user.value) deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'students', id)).catch(console.error);
+        };
+
+        // --- Print Logic ---
+        const printStudents = ref([]);
+        const printCards = () => {
+           printStudents.value = filteredStudents.value;
+           setTimeout(() => { window.print(); }, 500);
+        };
+
+        // --- Quiz Logic ---
+        const newQuizName = ref('');
+        const selectedQuiz = ref('');
+        
+        const getQuizName = (id) => { const q = quizzes.value.find(x => x.id === id); return q ? q.name : 'Unknown Quiz'; };
+        
+        const addQuiz = () => {
+           if (!newQuizName.value.trim() || !user.value) return;
+           const newQuiz = { id: Date.now().toString(), name: newQuizName.value.trim(), created: new Date().toISOString() };
+           newQuizName.value = '';
+           setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'quizzes', newQuiz.id), newQuiz).catch(console.error);
+        };
+        const deleteQuiz = async (id) => {
+           if (!(await showModal("Delete Quiz", "Delete this quiz and its answer key permanently?", true))) return;
+           if (!user.value) return;
+           deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'quizzes', id)).catch(console.error);
+           deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'quizKeys', id)).catch(console.error);
+           if (selectedQuiz.value === id) selectedQuiz.value = '';
+        };
+
+        // --- Answer Key Logic ---
+        const activeKeyData = computed(() => {
+           if (!selectedQuiz.value) return [];
+           if (!quizKeys.value[selectedQuiz.value] || quizKeys.value[selectedQuiz.value].length === 0) {
+              quizKeys.value[selectedQuiz.value] = [{ q: '', c: ['', '', '', ''], a: 0 }];
+           }
+           return quizKeys.value[selectedQuiz.value];
+        });
+
+        const hasUnsavedKey = ref(false);
+        const markKeyUnsaved = () => { hasUnsavedKey.value = true; };
+
+        const addQuestion = () => {
+           quizKeys.value[selectedQuiz.value].push({ q: '', c: ['', '', '', ''], a: 0 });
+           markKeyUnsaved();
+        };
+        const removeQuestion = (idx) => {
+           quizKeys.value[selectedQuiz.value].splice(idx, 1);
+           markKeyUnsaved();
+        };
+
+        const saveQuizKey = () => {
+           if (!user.value || !selectedQuiz.value) return;
+           const data = { questions: quizKeys.value[selectedQuiz.value] || [] };
+           // Optimistically clear the unsaved state, and fire-and-forget the document save for offline tolerance
+           hasUnsavedKey.value = false;
+           setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'quizKeys', selectedQuiz.value), data).catch(console.error);
+        };
+
+        // --- Scanning Session Logic ---
+        const activeClass = ref('');
+        const activeQuiz = ref('');
+        const activeSessionId = ref('');
+        
+        const videoRef = ref(null);
+        const canvasRef = ref(null);
+        let scanStream = null;
+        let scanInterval = null;
+
+        const activeSession = computed(() => sessions.value[activeSessionId.value]);
+        const activeQuizData = computed(() => quizKeys.value[activeQuiz.value] || []);
+        const activeClassStudents = computed(() => students.value.filter(s => s.classId === activeClass.value));
+        const activeScanQIndex = computed(() => activeSession.value?.qIndex || 0);
+        
+        const currentProjectedQuestion = computed(() => {
+           return activeQuizData.value[activeScanQIndex.value] || { q: 'Loading...', c: [] };
+        });
+
+        const hasScannedCurrentQ = (studentId) => {
+           return activeSession.value?.records?.[studentId]?.[activeScanQIndex.value] !== undefined;
+        };
+        
+        const activeQScannedCount = computed(() => {
+           return activeClassStudents.value.filter(s => hasScannedCurrentQ(s.id)).length;
+        });
+
+        const startSession = () => {
+           if (!activeQuiz.value || !activeClass.value) {
+              showModal("Selection Required", "Please select both a class and a quiz to begin.");
+              return;
+           }
+           if (!user.value) return;
+
+           const session = {
+              id: Date.now().toString(),
+              quizId: activeQuiz.value,
+              classId: activeClass.value,
+              timestamp: new Date().toISOString(),
+              qIndex: 0,
+              records: {}
+           };
+           
+           // Fire and forget so we can start scanning immediately, even if offline.
+           setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'sessions', session.id), session).catch(console.error);
+           activeSessionId.value = session.id;
+           startCamera();
+        };
+
+        const startCamera = async () => {
+           try {
+              scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+              if (videoRef.value) {
+                 videoRef.value.srcObject = scanStream;
+                 videoRef.value.play();
+                 scanInterval = requestAnimationFrame(scanTick);
+              }
+           } catch (e) {
+              showModal("Camera Access Denied", "Please allow camera permissions to scan QR cards.");
+           }
+        };
+
+        const stopCamera = () => {
+           if (scanStream) scanStream.getTracks().forEach(t => t.stop());
+           if (scanInterval) cancelAnimationFrame(scanInterval);
+        };
+
+        const endSession = async () => {
+           if (await showModal("End Session", "Are you sure you want to close this scanning session? Data is saved automatically.", true)) {
+              stopCamera();
+              activeSessionId.value = '';
+              isFullscreenProjector.value = false;
+           }
+        };
+
+        const changeQuestion = (dir) => {
+           const newIdx = activeScanQIndex.value + dir;
+           if (newIdx >= 0 && newIdx < activeQuizData.value.length && user.value) {
+              const updatedSession = { ...activeSession.value, qIndex: newIdx };
+              sessions.value[activeSessionId.value].qIndex = newIdx; 
+              setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'sessions', activeSessionId.value), updatedSession).catch(console.error);
+           }
+        };
+
+        const recentlyScanned = ref(new Set());
+        const latestScanName = ref('');
+        let saveTimeout = null;
+
+        const scanTick = () => {
+           if (videoRef.value && videoRef.value.readyState === videoRef.value.HAVE_ENOUGH_DATA && !isFullscreenProjector.value) {
+              const canvas = canvasRef.value;
+              const ctx = canvas.getContext("2d");
+              canvas.height = videoRef.value.videoHeight;
+              canvas.width = videoRef.value.videoWidth;
+              ctx.drawImage(videoRef.value, 0, 0, canvas.width, canvas.height);
+              const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              
+              if (typeof jsQR !== 'undefined') {
+                const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "dontInvert" });
+                if (code && code.data) processScan(code);
+              }
+           }
+           if (activeSessionId.value) {
+              scanInterval = requestAnimationFrame(scanTick);
+           }
+        };
+
+        const processScan = (code) => {
+           const studentId = code.data;
+           const session = activeSession.value;
+           const student = activeClassStudents.value.find(s => s.id === studentId);
+           
+           if (!session || !student || recentlyScanned.value.has(studentId)) return;
+
+           const dx = code.location.topRight.x - code.location.topLeft.x;
+           const dy = code.location.topRight.y - code.location.topLeft.y;
+           let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+           if (angle < 0) angle += 360;
+
+           let ansIdx = 0; // A
+           if (angle > 45 && angle <= 135) ansIdx = 1; // B
+           else if (angle > 135 && angle <= 225) ansIdx = 2; // C
+           else if (angle > 225 && angle <= 315) ansIdx = 3; // D
+
+           if (!session.records) session.records = {};
+           if (!session.records[studentId]) session.records[studentId] = {};
+           session.records[studentId][activeScanQIndex.value] = ansIdx;
+           
+           sessions.value = { ...sessions.value };
+
+           latestScanName.value = student.name;
+           recentlyScanned.value.add(studentId);
+           setTimeout(() => { 
+               if(latestScanName.value === student.name) latestScanName.value = '';
+               recentlyScanned.value.delete(studentId); 
+           }, 2000);
+
+           if (saveTimeout) clearTimeout(saveTimeout);
+           saveTimeout = setTimeout(() => {
+              if (user.value) {
+                 // Save without awaiting, letting offline persistence handle any queueing required
+                 setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'sessions', session.id), sessions.value[session.id]).catch(console.error);
+              }
+           }, 800);
+        };
+
+        // --- Projector Mode ---
+        const isFullscreenProjector = ref(false);
+        const toggleProjector = () => { isFullscreenProjector.value = !isFullscreenProjector.value; };
+
+        // --- Analytics Logic ---
+        const analyticsSessionId = ref('');
+        const analyticsSessionData = computed(() => sessions.value[analyticsSessionId.value]);
+
+        const analyticsStats = computed(() => {
+           const sess = analyticsSessionData.value;
+           if (!sess) return { avg: 0, totalItems: 0, participants: 0 };
+           const key = quizKeys.value[sess.quizId] || [];
+           const stundentsInClass = students.value.filter(s => s.classId === sess.classId);
+           
+           let totalScores = 0;
+           let validParticipants = 0;
+           
+           stundentsInClass.forEach(s => {
+              if (sess.records?.[s.id]) {
+                 validParticipants++;
+                 let score = 0;
+                 key.forEach((q, qIdx) => {
+                    if (sess.records[s.id][qIdx] === q.a) score++;
+                 });
+                 totalScores += score;
+              }
+           });
+
+           return {
+              totalItems: key.length,
+              participants: validParticipants,
+              avg: validParticipants ? Math.round((totalScores / (validParticipants * key.length)) * 100) : 0
+           };
+        });
+
+        const analyticsResults = computed(() => {
+           const sess = analyticsSessionData.value;
+           if (!sess) return [];
+           const key = quizKeys.value[sess.quizId] || [];
+           const stundentsInClass = students.value.filter(s => s.classId === sess.classId);
+           
+           return stundentsInClass.map(s => {
+              let score = 0;
+              if (sess.records?.[s.id]) {
+                 key.forEach((q, qIdx) => {
+                    if (sess.records[s.id][qIdx] === q.a) score++;
+                 });
+              }
+              const percent = key.length ? Math.round((score / key.length) * 100) : 0;
+              return { studentId: s.id, name: s.name, score, percent };
+           }).sort((a, b) => a.name.localeCompare(b.name));
+        });
+
+        const deleteSession = async (id) => {
+           if (!(await showModal("Delete Session Data", "Permanently delete results for this session?", true))) return;
+           if (user.value) {
+              deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'sessions', id)).catch(console.error);
+              if (analyticsSessionId.value === id) analyticsSessionId.value = '';
+           }
+        };
+
+        return {
+          isOnline, user, authLoading, isDbReady, currentView, isMenuOpen, navClass, modal, showModal,
+          
+          authEmail, authPassword, isLoginMode, authError, isAuthProcessing, toggleAuthMode, performAuth, performLogout,
+          
+          classes, students, quizzes, quizKeys, sessions,
+          
+          newClassName, addClass, deleteClass, getClassName,
+          
+          selectedClass, newStudentName, bulkStudentText, filteredStudents, getStudentCount,
+          addStudent, bulkAddStudents, deleteStudent, printCards, printStudents,
+          
+          newQuizName, selectedQuiz, getQuizName, addQuiz, deleteQuiz,
+          activeKeyData, hasUnsavedKey, markKeyUnsaved, addQuestion, removeQuestion, saveQuizKey,
+          
+          activeClass, activeQuiz, activeSessionId, activeScanQIndex, activeQuizData, activeClassStudents,
+          startSession, endSession, changeQuestion, hasScannedCurrentQ, activeQScannedCount,
+          currentProjectedQuestion, videoRef, canvasRef, latestScanName,
+          
+          isFullscreenProjector, toggleProjector,
+          
+          analyticsSessionId, analyticsSessionData, analyticsStats, analyticsResults, deleteSession
+        };
+      }
+    }).mount('#app');
+  </script>
+
+  <!-- Service Worker / PWA Caching Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      // Inline Service worker generation to ensure strict single-file constraint while enabling app installability
+      const swCode = `
+        const CACHE_NAME = 'scanmaster-cache-v1';
+        self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+        self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+        self.addEventListener('fetch', event => {
+          if (event.request.method !== 'GET' || event.request.url.includes('firestore.googleapis.com')) return;
+          event.respondWith(
+            fetch(event.request).then(response => {
+              const resClone = response.clone();
+              caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
+              return response;
+            }).catch(() => caches.match(event.request))
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register(swUrl).catch(err => console.log('PWA ServiceWorker registration notice:', err));
+      });
+    }
+  </script>
+</body>
+</html>
